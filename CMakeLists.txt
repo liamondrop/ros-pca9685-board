@@ -33,3 +33,5 @@ include_directories(
 
 add_executable(pca9685_board src/pca9685_board.cpp)
 target_link_libraries(pca9685_board ${catkin_LIBRARIES} ${wiringPi_LIB})
+add_executable(servo src/servo.c src/pca9685.c)
+target_link_libraries(servo ${wiringPi_LIB})
