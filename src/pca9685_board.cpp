@@ -13,35 +13,50 @@
 #define LED0_ON_L   0x6
 #define LEDALL_ON_L 0xFA
 
-#define PIN_ALL 16
+#define PIN_ALL  16
 #define PIN_BASE 300
-#define MAX_PWM 4096
-#define HERTZ 50
+#define MAX_PWM  4096
+#define HERTZ    50
+
+
+/**
+ * Helper function to get to register
+ */
+int base_register_(const int pin)
+{
+	return (pin >= PIN_ALL ? LEDALL_ON_L : LED0_ON_L + 4 * pin);
+}
 
 
 class PCA9685Board
 {
 public:
     PCA9685Board();
+    void pwm_write(int pin, int value);
 
 private:
     void joyCallback(const geometry_msgs::Twist::ConstPtr& twist);
-    int setup_(const int pin_base, const int i2c_address, float pwm_freq);
-    void set_pwm_freq_(const int fd, float pwm_freq);
-    void reset_(const int fd);
+    int  setup_(const int i2c_address, float pwm_freq);
+    void set_pwm_freq_(float pwm_freq);
+    void reset_();
+    void pwm_write_(int pin, int on, int off);
+    void full_on_(int pin, int tf);
+    void full_off_(int pin, int tf);
 
     ros::NodeHandle nh_;
 
+    int fd_;
     int linear_, angular_;
     double l_scale_, a_scale_;
     ros::Publisher vel_pub_;
     ros::Subscriber joy_sub_;
 };
 
+
 PCA9685Board::PCA9685Board():
     linear_(1), angular_(2)
 {
-    int fd = setup_(PIN_BASE, 0x40, HERTZ);
+    int fd = setup_(0x40, HERTZ);
     if (fd < 0)
     {
         ROS_ERROR("Error in setup.");
@@ -49,7 +64,7 @@ PCA9685Board::PCA9685Board():
     }
 
     // Reset all output
-    reset_(fd);
+    reset_();
 
     nh_.param("axis_linear", linear_, linear_);
     nh_.param("axis_angular", angular_, angular_);
@@ -67,6 +82,22 @@ void PCA9685Board::joyCallback(const geometry_msgs::Twist::ConstPtr& twist)
     vel_pub_.publish(twist2);
 }
 
+/**
+ * Simple PWM control which sets on-tick to 0 and off-tick to value.
+ * If value is <= 0, full-off will be enabled
+ * If value is >= 4096, full-on will be enabled
+ * Every value in between enables PWM output
+ */
+void PCA9685Board::pwm_write(int pin, int value)
+{
+    int ipin = pin - PIN_BASE;
+    if (value >= 4096)
+        full_on_(ipin, 1);
+    else if (value > 0)
+        pwm_write_(ipin, 0, value);	// (Deactivates full-on and off by itself)
+    else
+        full_off_(ipin, 1);
+}
 
 /**
  * Setup the PCA9685 board with wiringPi.
@@ -76,12 +107,12 @@ void PCA9685Board::joyCallback(const geometry_msgs::Twist::ConstPtr& twist)
  * pwm_freq:    Frequency will be capped to range [40..1000] Hertz.
  *              Try 50 for servos
  */
-int PCA9685Board::setup_(const int pin_base, const int i2c_address, float pwm_freq)
+int PCA9685Board::setup_(const int i2c_address, float pwm_freq)
 {
     wiringPiSetupGpio();
 
     // Create a node with 16 pins [0..15] + [16] for all
-    struct wiringPiNodeStruct *node = wiringPiNewNode(pin_base, PIN_ALL + 1);
+    struct wiringPiNodeStruct *node = wiringPiNewNode(PIN_BASE, PIN_ALL + 1);
 
     // Check if pin_base is available
     if (!node) return -1;
@@ -89,6 +120,7 @@ int PCA9685Board::setup_(const int pin_base, const int i2c_address, float pwm_fr
     // Check i2c address
     int fd = wiringPiI2CSetup(i2c_address);
     if (fd < 0) return fd;
+    fd_ = fd;
 
     // Setup the chip. Enable auto-increment of registers.
     int settings = wiringPiI2CReadReg8(fd, PCA9685_MODE1) & 0x7F;
@@ -97,7 +129,7 @@ int PCA9685Board::setup_(const int pin_base, const int i2c_address, float pwm_fr
     wiringPiI2CWriteReg8(fd, PCA9685_MODE1, auto_inc);
 
     // Set frequency of PWM signals. Also ends sleep mode and starts PWM output.
-    if (pwm_freq > 0) set_pwm_freq_(fd, pwm_freq);
+    if (pwm_freq > 0) set_pwm_freq_(pwm_freq);
 
     return fd;
 }
@@ -106,7 +138,7 @@ int PCA9685Board::setup_(const int pin_base, const int i2c_address, float pwm_fr
  * Set the frequency of PWM signals.
  * Frequency will be capped to range [40..1000] Hertz. Try 50 for servos.
  */
-void PCA9685Board::set_pwm_freq_(const int fd, float pwm_freq)
+void PCA9685Board::set_pwm_freq_(float pwm_freq)
 {
     // Cap at min and max
     pwm_freq = (pwm_freq > 1000 ? 1000 : (pwm_freq < 40 ? 40 : pwm_freq));
@@ -117,35 +149,92 @@ void PCA9685Board::set_pwm_freq_(const int fd, float pwm_freq)
     int prescale = (int)(25000000.0f / (4096 * pwm_freq) - 0.5f);
 
     // Get settings and calc bytes for the different states.
-    int settings = wiringPiI2CReadReg8(fd, PCA9685_MODE1) & 0x7F;   // Set restart bit to 0
+    int settings = wiringPiI2CReadReg8(fd_, PCA9685_MODE1) & 0x7F;   // Set restart bit to 0
     int sleep    = settings | 0x10;                                 // Set sleep bit to 1
     int wake     = settings & 0xEF;                                 // Set sleep bit to 0
     int restart  = wake | 0x80;                                     // Set restart bit to 1
 
     // Go to sleep, set prescale and wake up again.
-    wiringPiI2CWriteReg8(fd, PCA9685_MODE1, sleep);
-    wiringPiI2CWriteReg8(fd, PCA9685_PRESCALE, prescale);
-    wiringPiI2CWriteReg8(fd, PCA9685_MODE1, wake);
+    wiringPiI2CWriteReg8(fd_, PCA9685_MODE1, sleep);
+    wiringPiI2CWriteReg8(fd_, PCA9685_PRESCALE, prescale);
+    wiringPiI2CWriteReg8(fd_, PCA9685_MODE1, wake);
 
-    // Now wait a millisecond until oscillator finished stabilizing and restart PWM.
+    // Now wait a millisecond until oscillator finished
+    // stabilizing and restart PWM.
     delay(1);
-    wiringPiI2CWriteReg8(fd, PCA9685_MODE1, restart);
+    wiringPiI2CWriteReg8(fd_, PCA9685_MODE1, restart);
 }
-
 
 /**
  * Set all leds back to default values (: fullOff = 1)
  */
-void PCA9685Board::reset_(const int fd)
+void PCA9685Board::reset_()
 {
-    wiringPiI2CWriteReg16(fd, LEDALL_ON_L, 0x0);
-    wiringPiI2CWriteReg16(fd, LEDALL_ON_L + 2, 0x1000);
+    wiringPiI2CWriteReg16(fd_, LEDALL_ON_L, 0x0);
+    wiringPiI2CWriteReg16(fd_, LEDALL_ON_L + 2, 0x1000);
+}
+
+/**
+ * Write on and off ticks manually to a pin
+ * (Deactivates any full-on and full-off)
+ */
+void PCA9685Board::pwm_write_(int pin, int on, int off)
+{
+    int reg = base_register_(pin);
+
+    // Write to on and off registers and mask the
+    // 12 lowest bits of data to overwrite full-on and off
+    wiringPiI2CWriteReg16(fd_, reg, on  & 0x0FFF);
+    wiringPiI2CWriteReg16(fd_, reg + 2, off & 0x0FFF);
+}
+
+/**
+ * Enables or deactivates full-on
+ * tf = true: full-on
+ * tf = false: according to PWM
+ */
+void PCA9685Board::full_on_(int pin, int tf)
+{
+    int reg = base_register_(pin) + 1;  // LEDX_ON_H
+    int state = wiringPiI2CReadReg8(fd_, reg);
+
+    // Set bit 4 to 1 or 0 accordingly
+    state = tf ? (state | 0x10) : (state & 0xEF);
+
+    wiringPiI2CWriteReg8(fd_, reg, state);
+
+    // For simplicity, we set full-off to 0
+    // because it has priority over full-on
+    if (tf) full_off_(pin, 0);
+}
+
+/**
+ * Enables or deactivates full-off
+ * tf = true: full-off
+ * tf = false: according to PWM or full-on
+ */
+void PCA9685Board::full_off_(int pin, int tf)
+{
+    int reg = base_register_(pin) + 3;  // LEDX_OFF_H
+    int state = wiringPiI2CReadReg8(fd_, reg);
+
+    // Set bit 4 to 1 or 0 accordingly
+    state = tf ? (state | 0x10) : (state & 0xEF);
+
+    wiringPiI2CWriteReg8(fd_, reg, state);
 }
 
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "pca9685_board_node");
     PCA9685Board pca9685_board_node;
+
+    // Set servo to neutral position at 1.5 milliseconds
+	// (View http://en.wikipedia.org/wiki/Servo_control#Pulse_duration)
+	float millis = 1.5;
+	int tick = calcTicks(millis, HERTZ);
+	pwmWrite(PIN_BASE + 16, tick);
+	delay(2000);
 
     ros::spin();
 
