@@ -4,6 +4,8 @@ project(pca9685_board)
 find_package(catkin REQUIRED COMPONENTS roscpp)
 find_library(wiringPi_LIB wiringPi)
 
+set(wiringPi_DEPS pthread m crypt rt)
+
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -13,8 +15,7 @@ find_library(wiringPi_LIB wiringPi)
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(
-#  INCLUDE_DIRS include
+catkin_package(INCLUDE_DIRS include
 #  LIBRARIES learning_joy
 #  CATKIN_DEPENDS joy roscpp turtlesim
 #  DEPENDS system_lib
@@ -32,6 +33,4 @@ include_directories(
 )
 
 add_executable(pca9685_board src/pca9685_board.cpp)
-target_link_libraries(pca9685_board ${catkin_LIBRARIES} ${wiringPi_LIB})
-add_executable(servo src/servo.c src/pca9685.c)
-target_link_libraries(servo ${wiringPi_LIB})
+target_link_libraries(pca9685_board ${catkin_LIBRARIES} ${wiringPi_LIB} ${wiringPi_DEPS})
