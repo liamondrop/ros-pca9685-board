@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(pca9685_board)
 
-find_package(catkin REQUIRED COMPONENTS roscpp std_msgs message_generation)
 find_library(wiringPi_LIB wiringPi)
+
+find_package(catkin REQUIRED COMPONENTS roscpp std_msgs message_generation)
 
 add_message_files(DIRECTORY msg FILES Servo.msg)
 
