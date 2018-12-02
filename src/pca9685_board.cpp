@@ -224,19 +224,43 @@ void PCA9685Board::full_off_(int pin, int tf)
     wiringPiI2CWriteReg8(fd_, reg, state);
 }
 
+/**
+ * Calculate the number of ticks the signal should be high
+ * for the required amount of time
+ */
+int calcTicks(float impulseMs, int hertz)
+{
+	float cycleMs = 1000.0f / hertz;
+	return (int)(MAX_PWM * impulseMs / cycleMs + 0.5f);
+}
+
+/**
+ * input is [0..1]
+ * output is [min..max]
+ */
+float map(float input, float min, float max)
+{
+	return (input * max) + (1 - input) * min;
+}
+
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "pca9685_board_node");
-    PCA9685Board pca9685_board_node;
+    PCA9685Board board;
 
     // Set servo to neutral position at 1.5 milliseconds
-	// (View http://en.wikipedia.org/wiki/Servo_control#Pulse_duration)
-	// float millis = 1.5;
-	// int tick = calcTicks(millis, HERTZ);
-	// pwmWrite(PIN_BASE + 16, tick);
-	// delay(2000);
+    // (View http://en.wikipedia.org/wiki/Servo_control#Pulse_duration)
+    float millis = 1.5;
+    int tick = calcTicks(millis, HERTZ);
+    board.pwm_write(PIN_BASE + 16, tick);
 
-    ros::spin();
+    // ros::Rate r(1); // 1 hz
+    // while (ros::ok())
+    // {
+    //     // ... do some work, publish some messages, etc. ...
+    //     ros::spinOnce();
+    //     r.sleep();
+    // }
 
     return 0;
 }
