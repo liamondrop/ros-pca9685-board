@@ -1,6 +1,5 @@
 #include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
-#include <sensor_msgs/Joy.h>
 
 #include <wiringPi.h>
 #include <wiringPiI2C.h>
@@ -13,10 +12,11 @@
 #define LED0_ON_L   0x6
 #define LEDALL_ON_L 0xFA
 
-#define PIN_ALL  16
-#define PIN_BASE 300
-#define MAX_PWM  4096
-#define HERTZ    50
+#define I2C_ADDRESS 0x40
+#define PIN_ALL     16
+#define PIN_BASE    300
+#define MAX_PWM     4096
+#define HERTZ       50
 
 
 /**
@@ -40,14 +40,14 @@ private:
     void joyCallback(const geometry_msgs::Twist::ConstPtr& twist);
     int  setup_(const int i2c_address, float pwm_freq);
     void set_pwm_freq_(float pwm_freq);
-    void reset_();
+    void reset_all_();
     void pwm_write_(int pin, int on, int off);
     void full_on_(int pin, int tf);
     void full_off_(int pin, int tf);
 
     ros::NodeHandle nh_;
 
-    int fd_;
+    int io_handle_;
     int linear_, angular_;
     double l_scale_, a_scale_;
     ros::Publisher vel_pub_;
@@ -56,25 +56,20 @@ private:
 
 
 PCA9685Board::PCA9685Board():
-    linear_(1), angular_(2)
 {
-    int fd = setup_(0x40, HERTZ);
-    if (fd < 0)
+    if (0 > setup_(I2C_ADDRESS, HERTZ))
     {
         ROS_ERROR("Error in setup.");
         return;
     }
 
     // Reset all output
-    reset_();
+    reset_all_();
 
-    nh_.param("axis_linear", linear_, linear_);
-    nh_.param("axis_angular", angular_, angular_);
     nh_.param("scale_linear", a_scale_, a_scale_);
     nh_.param("scale_angular", l_scale_, l_scale_);
     nh_.param("/pca9685_board_node/servo", servo, servo);
     nh_.param("/pca9685_board_node/pulse", pulse, pulse);
-    vel_pub_ = nh_.advertise<geometry_msgs::Twist>("turtle1/cmd_vel", 1);
     joy_sub_ = nh_.subscribe<geometry_msgs::Twist>("joy", 10, &PCA9685Board::joyCallback, this);
 }
 
@@ -83,7 +78,6 @@ void PCA9685Board::joyCallback(const geometry_msgs::Twist::ConstPtr& twist)
     geometry_msgs::Twist twist2;
     twist2.angular.z = a_scale_ * twist->angular.z;
     twist2.linear.x = l_scale_ * twist->linear.x;
-    vel_pub_.publish(twist2);
 }
 
 /**
@@ -94,12 +88,13 @@ void PCA9685Board::joyCallback(const geometry_msgs::Twist::ConstPtr& twist)
  */
 void PCA9685Board::pwm_write(int pin, int value)
 {
+    int ipin = pin + 1;
     if (value >= 4096)
-        full_on_(pin, 1);
+        full_on_(ipin, 1);
     else if (value > 0)
-        pwm_write_(pin, 0, value);	// (Deactivates full-on and off by itself)
+        pwm_write_(ipin, 0, value);	// (Deactivates full-on and off by itself)
     else
-        full_off_(pin, 1);
+        full_off_(ipin, 1);
 }
 
 /**
@@ -121,9 +116,9 @@ int PCA9685Board::setup_(const int i2c_address, float pwm_freq)
     if (!node) return -1;
 
     // Check i2c address
-    int fd = wiringPiI2CSetup(i2c_address);
+    fd = wiringPiI2CSetup(i2c_address);
     if (fd < 0) return fd;
-    fd_ = fd;
+    io_handle_ = fd;
 
     // Setup the chip. Enable auto-increment of registers.
     int settings = wiringPiI2CReadReg8(fd, PCA9685_MODE1) & 0x7F;
@@ -152,29 +147,29 @@ void PCA9685Board::set_pwm_freq_(float pwm_freq)
     int prescale = (int)(25000000.0f / (4096 * pwm_freq) - 0.5f);
 
     // Get settings and calc bytes for the different states.
-    int settings = wiringPiI2CReadReg8(fd_, PCA9685_MODE1) & 0x7F;   // Set restart bit to 0
+    int settings = wiringPiI2CReadReg8(io_handle_, PCA9685_MODE1) & 0x7F;   // Set restart bit to 0
     int sleep    = settings | 0x10;                                 // Set sleep bit to 1
     int wake     = settings & 0xEF;                                 // Set sleep bit to 0
     int restart  = wake | 0x80;                                     // Set restart bit to 1
 
     // Go to sleep, set prescale and wake up again.
-    wiringPiI2CWriteReg8(fd_, PCA9685_MODE1, sleep);
-    wiringPiI2CWriteReg8(fd_, PCA9685_PRESCALE, prescale);
-    wiringPiI2CWriteReg8(fd_, PCA9685_MODE1, wake);
+    wiringPiI2CWriteReg8(io_handle_, PCA9685_MODE1, sleep);
+    wiringPiI2CWriteReg8(io_handle_, PCA9685_PRESCALE, prescale);
+    wiringPiI2CWriteReg8(io_handle_, PCA9685_MODE1, wake);
 
     // Now wait a millisecond until oscillator finished
     // stabilizing and restart PWM.
     delay(1);
-    wiringPiI2CWriteReg8(fd_, PCA9685_MODE1, restart);
+    wiringPiI2CWriteReg8(io_handle_, PCA9685_MODE1, restart);
 }
 
 /**
  * Set all leds back to default values (: fullOff = 1)
  */
-void PCA9685Board::reset_()
+void PCA9685Board::reset_all_()
 {
-    wiringPiI2CWriteReg16(fd_, LEDALL_ON_L, 0x0);
-    wiringPiI2CWriteReg16(fd_, LEDALL_ON_L + 2, 0x1000);
+    wiringPiI2CWriteReg16(io_handle_, LEDALL_ON_L,     0x0);
+    wiringPiI2CWriteReg16(io_handle_, LEDALL_ON_L + 2, 0x1000);
 }
 
 /**
@@ -187,8 +182,8 @@ void PCA9685Board::pwm_write_(int pin, int on, int off)
 
     // Write to on and off registers and mask the
     // 12 lowest bits of data to overwrite full-on and off
-    wiringPiI2CWriteReg16(fd_, reg, on  & 0x0FFF);
-    wiringPiI2CWriteReg16(fd_, reg + 2, off & 0x0FFF);
+    wiringPiI2CWriteReg16(io_handle_, reg,     on & 0x0FFF);
+    wiringPiI2CWriteReg16(io_handle_, reg + 2, off & 0x0FFF);
 }
 
 /**
@@ -199,12 +194,12 @@ void PCA9685Board::pwm_write_(int pin, int on, int off)
 void PCA9685Board::full_on_(int pin, int tf)
 {
     int reg = base_register_(pin) + 1;  // LEDX_ON_H
-    int state = wiringPiI2CReadReg8(fd_, reg);
+    int state = wiringPiI2CReadReg8(io_handle_, reg);
 
     // Set bit 4 to 1 or 0 accordingly
     state = tf ? (state | 0x10) : (state & 0xEF);
 
-    wiringPiI2CWriteReg8(fd_, reg, state);
+    wiringPiI2CWriteReg8(io_handle_, reg, state);
 
     // For simplicity, we set full-off to 0
     // because it has priority over full-on
@@ -219,12 +214,12 @@ void PCA9685Board::full_on_(int pin, int tf)
 void PCA9685Board::full_off_(int pin, int tf)
 {
     int reg = base_register_(pin) + 3;  // LEDX_OFF_H
-    int state = wiringPiI2CReadReg8(fd_, reg);
+    int state = wiringPiI2CReadReg8(io_handle_, reg);
 
     // Set bit 4 to 1 or 0 accordingly
     state = tf ? (state | 0x10) : (state & 0xEF);
 
-    wiringPiI2CWriteReg8(fd_, reg, state);
+    wiringPiI2CWriteReg8(io_handle_, reg, state);
 }
 
 // /**
