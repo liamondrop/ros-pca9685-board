@@ -44,8 +44,8 @@ PCA9685Board::PCA9685Board():
     int fd = setup_(PIN_BASE, 0x40, HERTZ);
     if (fd < 0)
     {
-        printf("Error in setup\n");
-        return fd;
+        ROS_ERROR("Error in setup.");
+        return;
     }
 
     // Reset all output
