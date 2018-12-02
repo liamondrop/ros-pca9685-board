@@ -231,10 +231,10 @@ int main(int argc, char** argv)
 
     // Set servo to neutral position at 1.5 milliseconds
 	// (View http://en.wikipedia.org/wiki/Servo_control#Pulse_duration)
-	float millis = 1.5;
-	int tick = calcTicks(millis, HERTZ);
-	pwmWrite(PIN_BASE + 16, tick);
-	delay(2000);
+	// float millis = 1.5;
+	// int tick = calcTicks(millis, HERTZ);
+	// pwmWrite(PIN_BASE + 16, tick);
+	// delay(2000);
 
     ros::spin();
 
