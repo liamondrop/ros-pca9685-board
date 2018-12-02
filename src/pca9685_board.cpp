@@ -226,45 +226,45 @@ void PCA9685Board::full_off_(int pin, int tf)
     wiringPiI2CWriteReg8(fd_, reg, state);
 }
 
-/**
- * \private method to set a value for a PWM channel, based on a range of ±1.0, on the active board
- *
- *The pulse defined by start/stop will be active on the specified servo channel until any subsequent call changes it.
- *@param servo an int value (1..16) indicating which channel to change power
- *@param value an int value (±1.0) indicating when the size of the pulse for the channel.
- *Example _set_pwm_interval (3, 0, 350)    // set servo #3 (fourth position on the hardware board) with a pulse of 350
- */
-void _set_pwm_interval_proportional_(int servo, float value)
-{
-    // need a little wiggle room to allow for accuracy of a
-    // floating point value
-    if ((value < -1.0001) || (value > 1.0001)) {
-        ROS_ERROR("Invalid proportion value %f :: proportion \
-            values must be between -1.0 and 1.0", value);
-        return;
-    }
+// /**
+//  * \private method to set a value for a PWM channel, based on a range of ±1.0, on the active board
+//  *
+//  *The pulse defined by start/stop will be active on the specified servo channel until any subsequent call changes it.
+//  *@param servo an int value (1..16) indicating which channel to change power
+//  *@param value an int value (±1.0) indicating when the size of the pulse for the channel.
+//  *Example _set_pwm_interval (3, 0, 350)    // set servo #3 (fourth position on the hardware board) with a pulse of 350
+//  */
+// void _set_pwm_interval_proportional_(int servo, float value)
+// {
+//     // need a little wiggle room to allow for accuracy of a
+//     // floating point value
+//     if ((value < -1.0001) || (value > 1.0001)) {
+//         ROS_ERROR("Invalid proportion value %f :: proportion \
+//             values must be between -1.0 and 1.0", value);
+//         return;
+//     }
 
-    servo_config* configp = &(_servo_configs[servo-1]);
+//     servo_config* configp = &(_servo_configs[servo-1]);
 
-    if ((configp->center < 0) ||(configp->range < 0)) {
-        ROS_ERROR("Missing servo configuration for servo[%d]", servo);
-        return;
-    }
+//     if ((configp->center < 0) ||(configp->range < 0)) {
+//         ROS_ERROR("Missing servo configuration for servo[%d]", servo);
+//         return;
+//     }
 
-    int pos = (configp->direction * (((float)(configp->range) / 2) * value)) +
-        configp->center;
+//     int pos = (configp->direction * (((float)(configp->range) / 2) * value)) +
+//         configp->center;
 
-    if ((pos < 0) || (pos > 4096)) {
-        ROS_ERROR(
-            "Invalid computed position servo[%d] = (direction(%d) * ((range(%d) / 2) * value(%6.4f))) + %d = %d",
-            servo, configp->direction, configp->range, value, configp->center, pos);
-        return;
-    }
-    _set_pwm_interval(servo, 0, pos);
-    ROS_DEBUG(
-        "servo[%d] = (direction(%d) * ((range(%d) / 2) * value(%6.4f))) + %d = %d",
-        servo, configp->direction, configp->range, value, configp->center, pos);
-}
+//     if ((pos < 0) || (pos > 4096)) {
+//         ROS_ERROR(
+//             "Invalid computed position servo[%d] = (direction(%d) * ((range(%d) / 2) * value(%6.4f))) + %d = %d",
+//             servo, configp->direction, configp->range, value, configp->center, pos);
+//         return;
+//     }
+//     _set_pwm_interval(servo, 0, pos);
+//     ROS_DEBUG(
+//         "servo[%d] = (direction(%d) * ((range(%d) / 2) * value(%6.4f))) + %d = %d",
+//         servo, configp->direction, configp->range, value, configp->center, pos);
+// }
 
 // void servos_proportional(const i2cpwm_board::ServoArray::ConstPtr& msg)
 // {
