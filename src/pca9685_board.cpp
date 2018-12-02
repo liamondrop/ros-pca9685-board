@@ -254,13 +254,24 @@ int main(int argc, char** argv)
     int tick = calcTicks(millis, HERTZ);
     board.pwm_write(PIN_BASE + 16, tick);
 
-    // ros::Rate r(1); // 1 hz
-    // while (ros::ok())
-    // {
-    //     // ... do some work, publish some messages, etc. ...
-    //     ros::spinOnce();
-    //     r.sleep();
-    // }
+    ros::Rate r(1); // 1 hz
+    while (ros::ok())
+    {
+        // ... do some work, publish some messages, etc. ...
+        // That's a hack. We need a random number < 1
+        float r = rand();
+        while (r > 1) r /= 10;
+
+        millis = map(r, 1, 2);
+        tick = calcTicks(millis, HERTZ);
+
+        ROS_INFO("Tick: %d", tick);
+
+        board.pwm_write(PIN_BASE + 16, tick);
+
+        ros::spinOnce();
+        r.sleep();
+    }
 
     return 0;
 }
