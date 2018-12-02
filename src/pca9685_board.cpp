@@ -254,7 +254,7 @@ int main(int argc, char** argv)
     int tick = calcTicks(millis, HERTZ);
     board.pwm_write(PIN_BASE + 16, tick);
 
-    ros::Rate r(1); // 1 hz
+    ros::Rate spin_rate(1); // 1 hz
     while (ros::ok())
     {
         // ... do some work, publish some messages, etc. ...
@@ -270,7 +270,7 @@ int main(int argc, char** argv)
         board.pwm_write(PIN_BASE + 16, tick);
 
         ros::spinOnce();
-        r.sleep();
+        spin_rate.sleep();
     }
 
     return 0;
