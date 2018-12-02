@@ -5,9 +5,11 @@
       - {servo: 2, center: 325, direction: 1, range: 180}
   </rosparam>
 
-  <arg name="pulse" default="330" /> 
+  <arg name="servo" default="1" />
+  <arg name="pulse" default="330" />
 
   <node pkg="pca9685_board" name="pca9685_board_node" type="pca9685_board" output="screen">
+    <param name="pulse" type="int" value="$(arg servo)" />
     <param name="pulse" type="int" value="$(arg pulse)" />
   </node>
 </launch>

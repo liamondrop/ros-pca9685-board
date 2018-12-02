@@ -34,6 +34,7 @@ public:
     PCA9685Board();
     void pwm_write(int pin, int value);
     int pulse;
+    int servo;
 
 private:
     void joyCallback(const geometry_msgs::Twist::ConstPtr& twist);
@@ -71,7 +72,8 @@ PCA9685Board::PCA9685Board():
     nh_.param("axis_angular", angular_, angular_);
     nh_.param("scale_linear", a_scale_, a_scale_);
     nh_.param("scale_angular", l_scale_, l_scale_);
-    nh_.param("pulse", pulse, 330);
+    nh_.param("/pca9685_board_node/servo", servo, servo);
+    nh_.param("/pca9685_board_node/pulse", pulse, pulse);
     vel_pub_ = nh_.advertise<geometry_msgs::Twist>("turtle1/cmd_vel", 1);
     joy_sub_ = nh_.subscribe<geometry_msgs::Twist>("joy", 10, &PCA9685Board::joyCallback, this);
 }
@@ -92,13 +94,12 @@ void PCA9685Board::joyCallback(const geometry_msgs::Twist::ConstPtr& twist)
  */
 void PCA9685Board::pwm_write(int pin, int value)
 {
-    int ipin = pin - PIN_BASE;
     if (value >= 4096)
-        full_on_(ipin, 1);
+        full_on_(pin, 1);
     else if (value > 0)
-        pwm_write_(ipin, 0, value);	// (Deactivates full-on and off by itself)
+        pwm_write_(pin, 0, value);	// (Deactivates full-on and off by itself)
     else
-        full_off_(ipin, 1);
+        full_off_(pin, 1);
 }
 
 /**
@@ -306,12 +307,12 @@ int main(int argc, char** argv)
     // (View http://en.wikipedia.org/wiki/Servo_control#Pulse_duration)
     float millis = 1.5;
     int tick = calcTicks(millis, HERTZ);
-    board.pwm_write(PIN_BASE + 16, tick);
+    board.pwm_write(PIN_ALL, tick);
 
     ROS_INFO("Tick: %d", tick);
     ROS_INFO("Pulse: %d", board.pulse);
 
-    board.pwm_write(PIN_BASE + 16, board.pulse);
+    board.pwm_write(0, board.pulse);
 
     ros::spin();
 
