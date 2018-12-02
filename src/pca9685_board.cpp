@@ -33,6 +33,7 @@ class PCA9685Board
 public:
     PCA9685Board();
     void pwm_write(int pin, int value);
+    int pulse;
 
 private:
     void joyCallback(const geometry_msgs::Twist::ConstPtr& twist);
@@ -70,6 +71,7 @@ PCA9685Board::PCA9685Board():
     nh_.param("axis_angular", angular_, angular_);
     nh_.param("scale_linear", a_scale_, a_scale_);
     nh_.param("scale_angular", l_scale_, l_scale_);
+    nh_.param("pulse", pulse, 330);
     vel_pub_ = nh_.advertise<geometry_msgs::Twist>("turtle1/cmd_vel", 1);
     joy_sub_ = nh_.subscribe<geometry_msgs::Twist>("joy", 10, &PCA9685Board::joyCallback, this);
 }
@@ -225,6 +227,58 @@ void PCA9685Board::full_off_(int pin, int tf)
 }
 
 /**
+ * \private method to set a value for a PWM channel, based on a range of ±1.0, on the active board
+ *
+ *The pulse defined by start/stop will be active on the specified servo channel until any subsequent call changes it.
+ *@param servo an int value (1..16) indicating which channel to change power
+ *@param value an int value (±1.0) indicating when the size of the pulse for the channel.
+ *Example _set_pwm_interval (3, 0, 350)    // set servo #3 (fourth position on the hardware board) with a pulse of 350
+ */
+void _set_pwm_interval_proportional_(int servo, float value)
+{
+    // need a little wiggle room to allow for accuracy of a
+    // floating point value
+    if ((value < -1.0001) || (value > 1.0001)) {
+        ROS_ERROR("Invalid proportion value %f :: proportion \
+            values must be between -1.0 and 1.0", value);
+        return;
+    }
+
+    servo_config* configp = &(_servo_configs[servo-1]);
+
+    if ((configp->center < 0) ||(configp->range < 0)) {
+        ROS_ERROR("Missing servo configuration for servo[%d]", servo);
+        return;
+    }
+
+    int pos = (configp->direction * (((float)(configp->range) / 2) * value)) +
+        configp->center;
+
+    if ((pos < 0) || (pos > 4096)) {
+        ROS_ERROR(
+            "Invalid computed position servo[%d] = (direction(%d) * ((range(%d) / 2) * value(%6.4f))) + %d = %d",
+            servo, configp->direction, configp->range, value, configp->center, pos);
+        return;
+    }
+    _set_pwm_interval(servo, 0, pos);
+    ROS_DEBUG(
+        "servo[%d] = (direction(%d) * ((range(%d) / 2) * value(%6.4f))) + %d = %d",
+        servo, configp->direction, configp->range, value, configp->center, pos);
+}
+
+// void servos_proportional(const i2cpwm_board::ServoArray::ConstPtr& msg)
+// {
+//     /* this subscription works on the active_board */
+
+//     for (std::vector<i2cpwm_board::Servo>::const_iterator sp = msg->servos.begin(); sp != msg->servos.end(); ++sp) {
+//         int servo = sp->servo;
+//         float value = sp->value;
+//         ROS_INFO("servo[%d] = %d", servo, value);
+//         _set_pwm_interval_proportional(servo, value);
+//     }
+// }
+
+/**
  * Calculate the number of ticks the signal should be high
  * for the required amount of time
  */
@@ -252,26 +306,26 @@ int main(int argc, char** argv)
     // (View http://en.wikipedia.org/wiki/Servo_control#Pulse_duration)
     float millis = 1.5;
     int tick = calcTicks(millis, HERTZ);
-    board.pwm_write(PIN_BASE + 16, tick);
+    board.pwm_write(PIN_BASE + 16, board.pulse);
 
-    ros::Rate spin_rate(1); // 1 hz
-    while (ros::ok())
-    {
-        // ... do some work, publish some messages, etc. ...
-        // That's a hack. We need a random number < 1
-        float r = rand();
-        while (r > 1) r /= 10;
+    // ros::Rate spin_rate(1); // 1 hz
+    // while (ros::ok())
+    // {
+    //     // ... do some work, publish some messages, etc. ...
+    //     // That's a hack. We need a random number < 1
+    //     float r = rand();
+    //     while (r > 1) r /= 10;
 
-        millis = map(r, 1, 2);
-        tick = calcTicks(millis, HERTZ);
+    //     millis = map(r, 1, 2);
+    //     tick = calcTicks(millis, HERTZ);
 
-        ROS_INFO("Tick: %d", tick);
+    //     ROS_INFO("Tick: %d", tick);
 
-        board.pwm_write(PIN_BASE + 16, tick);
+    //     board.pwm_write(PIN_BASE + 16, tick);
 
-        ros::spinOnce();
-        spin_rate.sleep();
-    }
+    //     ros::spinOnce();
+    //     spin_rate.sleep();
+    // }
 
     return 0;
 }

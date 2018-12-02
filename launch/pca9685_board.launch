@@ -5,5 +5,7 @@
       - {servo: 2, center: 325, direction: 1, range: 180}
   </rosparam>
 
-  <node pkg="pca9685_board" name="pca9685_board_node" type="pca9685_board" output="screen" />
+  <node pkg="pca9685_board" name="pca9685_board_node" type="pca9685_board" output="screen">
+    <param name="pulse" type="int" value="350" />
+  </node>
 </launch>
