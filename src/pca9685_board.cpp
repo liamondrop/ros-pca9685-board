@@ -179,14 +179,20 @@ void PCA9685Board::set_pwm_freq_(float pwm_freq)
 void PCA9685Board::set_pwm_interval_(int pin, int value)
 {
     if (value >= 4096)
+    {
         full_on_(pin, 1);
         ROS_INFO("SERVO[%d] = full_on", pin);
+    }
     else if (value > 0)
-        pwm_write_(pin, 0, value);	// (Deactivates full-on and off by itself)
+    {
+        pwm_write_(pin, 0, value);
         ROS_INFO("SERVO[%d] = %d", pin, value);
+    }
     else
+    {
         full_off_(pin, 1);
         ROS_INFO("SERVO[%d] = full_off", pin);
+    }
 }
 
 /**
