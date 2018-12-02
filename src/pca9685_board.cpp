@@ -306,7 +306,14 @@ int main(int argc, char** argv)
     // (View http://en.wikipedia.org/wiki/Servo_control#Pulse_duration)
     float millis = 1.5;
     int tick = calcTicks(millis, HERTZ);
+    board.pwm_write(PIN_BASE + 16, tick);
+
+    ROS_INFO("Tick: %d", tick);
+    ROS_INFO("Pulse: %d", board.pulse);
+
     board.pwm_write(PIN_BASE + 16, board.pulse);
+
+    ros::spin();
 
     // ros::Rate spin_rate(1); // 1 hz
     // while (ros::ok())
