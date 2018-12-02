@@ -18,7 +18,7 @@ set(wiringPi_DEPS pthread m crypt rt)
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES learning_joy
-#  CATKIN_DEPENDS joy roscpp turtlesim
+#  CATKIN_DEPENDS roscpp
 #  DEPENDS system_lib
 )
 

@@ -14,6 +14,9 @@
 #define LEDALL_ON_L 0xFA
 
 #define PIN_ALL 16
+#define PIN_BASE 300
+#define MAX_PWM 4096
+#define HERTZ 50
 
 
 class PCA9685Board
