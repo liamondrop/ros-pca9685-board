@@ -4,10 +4,11 @@ project(pca9685_board)
 find_package(catkin REQUIRED COMPONENTS roscpp std_msgs message_generation)
 find_library(wiringPi_LIB wiringPi)
 
-catkin_package(CATKIN_DEPENDS roscpp message_runtime)
-
 add_message_files(DIRECTORY msg FILES Servo.msg)
+
 generate_messages(DEPENDENCIES std_msgs)
+
+catkin_package(CATKIN_DEPENDS roscpp message_runtime)
 
 include_directories(include ${catkin_INCLUDE_DIR})
 
