@@ -312,7 +312,7 @@ int main(int argc, char** argv)
     ROS_INFO("Tick: %d", tick);
     ROS_INFO("Pulse: %d", board.pulse);
 
-    board.pwm_write(0, board.pulse);
+    board.pwm_write(board.servo, board.pulse);
 
     ros::spin();
 
