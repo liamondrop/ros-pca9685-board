@@ -55,7 +55,7 @@ private:
 };
 
 
-PCA9685Board::PCA9685Board():
+PCA9685Board::PCA9685Board()
 {
     if (0 > setup_(I2C_ADDRESS, HERTZ))
     {
@@ -116,7 +116,7 @@ int PCA9685Board::setup_(const int i2c_address, float pwm_freq)
     if (!node) return -1;
 
     // Check i2c address
-    fd = wiringPiI2CSetup(i2c_address);
+    int fd = wiringPiI2CSetup(i2c_address);
     if (fd < 0) return fd;
     io_handle_ = fd;
 
