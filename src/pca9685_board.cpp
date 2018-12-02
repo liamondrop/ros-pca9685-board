@@ -4,6 +4,8 @@
 #include <wiringPi.h>
 #include <wiringPiI2C.h>
 
+#include "pca9685_board/Servo.h"
+
 // Setup registers
 #define PCA9685_MODE1    0x0
 #define PCA9685_PRESCALE 0xFE
@@ -33,6 +35,7 @@ class PCA9685Board
 public:
     PCA9685Board();
     void pwm_write(int pin, int value);
+    void servo_absolute(const pca9685_board::Servo::ConstPtr& msg);
     int pulse;
     int servo;
 
@@ -52,6 +55,7 @@ private:
     double l_scale_, a_scale_;
     ros::Publisher vel_pub_;
     ros::Subscriber joy_sub_;
+    ros::Subscriber abs_sub_;
 };
 
 
@@ -71,6 +75,7 @@ PCA9685Board::PCA9685Board()
     nh_.param("/pca9685_board_node/servo", servo, servo);
     nh_.param("/pca9685_board_node/pulse", pulse, pulse);
     joy_sub_ = nh_.subscribe<geometry_msgs::Twist>("joy", 10, &PCA9685Board::joyCallback, this);
+    abs_sub_ = nh_.subscribe<pca9685_board::Servo>("servos_absolute", 1, &PCA9685Board::servos_absolute, this);
 }
 
 void PCA9685Board::joyCallback(const geometry_msgs::Twist::ConstPtr& twist)
@@ -78,6 +83,21 @@ void PCA9685Board::joyCallback(const geometry_msgs::Twist::ConstPtr& twist)
     geometry_msgs::Twist twist2;
     twist2.angular.z = a_scale_ * twist->angular.z;
     twist2.linear.x = l_scale_ * twist->linear.x;
+}
+
+void PCA9685Board::servo_absolute(const pca9685_board::Servo::ConstPtr& msg)
+{
+    int servo = msg->servo;
+    int value = msg->value;
+
+    ROS_INFO("SERVO: %d; VALUE: %d", servo, value);
+
+    // if ((value < 0) || (value > 4096)) {
+    //     ROS_ERROR("Invalid PWM value %d :: PWM values must be between 0 and 4096", value);
+    //     continue;
+    // }
+    // _set_pwm_interval (servo, 0, value);
+    // ROS_DEBUG("servo[%d] = %d", servo, value);
 }
 
 /**
