@@ -34,16 +34,16 @@ class PCA9685Board
 {
 public:
     PCA9685Board();
-    void pwm_write(int pin, int value);
-    void servo_absolute(const pca9685_board::Servo::ConstPtr& msg);
     int pulse;
     int servo;
 
 private:
     void joyCallback(const geometry_msgs::Twist::ConstPtr& twist);
+    void servo_absolute_(const pca9685_board::Servo::ConstPtr& msg);
     int  setup_(const int i2c_address, float pwm_freq);
-    void set_pwm_freq_(float pwm_freq);
     void reset_all_();
+    void set_pwm_freq_(float pwm_freq);
+    void set_pwm_interval_(int pin, int value);
     void pwm_write_(int pin, int on, int off);
     void full_on_(int pin, int tf);
     void full_off_(int pin, int tf);
@@ -75,7 +75,7 @@ PCA9685Board::PCA9685Board()
     nh_.param("/pca9685_board_node/servo", servo, servo);
     nh_.param("/pca9685_board_node/pulse", pulse, pulse);
     joy_sub_ = nh_.subscribe<geometry_msgs::Twist>("joy", 10, &PCA9685Board::joyCallback, this);
-    abs_sub_ = nh_.subscribe<pca9685_board::Servo>("servos_absolute", 1, &PCA9685Board::servos_absolute, this);
+    abs_sub_ = nh_.subscribe<pca9685_board::Servo>("servo_absolute", 1, &PCA9685Board::servo_absolute_, this);
 }
 
 void PCA9685Board::joyCallback(const geometry_msgs::Twist::ConstPtr& twist)
@@ -85,36 +85,23 @@ void PCA9685Board::joyCallback(const geometry_msgs::Twist::ConstPtr& twist)
     twist2.linear.x = l_scale_ * twist->linear.x;
 }
 
-void PCA9685Board::servo_absolute(const pca9685_board::Servo::ConstPtr& msg)
-{
-    int servo = msg->servo;
-    int value = msg->value;
-
-    ROS_INFO("SERVO: %d; VALUE: %d", servo, value);
-
-    // if ((value < 0) || (value > 4096)) {
-    //     ROS_ERROR("Invalid PWM value %d :: PWM values must be between 0 and 4096", value);
-    //     continue;
-    // }
-    // _set_pwm_interval (servo, 0, value);
-    // ROS_DEBUG("servo[%d] = %d", servo, value);
-}
-
 /**
- * Simple PWM control which sets on-tick to 0 and off-tick to value.
- * If value is <= 0, full-off will be enabled
- * If value is >= 4096, full-on will be enabled
- * Every value in between enables PWM output
+ * Subscriber for the servo_absolute topic which processes a servo and sets its physical pulse value.
+ *
+ * the following messages are an example of finding a continuous servo's center
+ * in this example the center is found to be 333
+ * 
+ * rostopic pub servo_absolute pca9685_board/Servo "{servo: 1, value: 300}"
+ * rostopic pub servo_absolute pca9685_board/Servo "{servo: 1, value: 350}"
+ * rostopic pub servo_absolute pca9685_board/Servo "{servo: 1, value: 320}"
+ * rostopic pub servo_absolute pca9685_board/Servo "{servo: 1, value: 330}"
+ * rostopic pub servo_absolute pca9685_board/Servo "{servo: 1, value: 335}"
+ * rostopic pub servo_absolute pca9685_board/Servo "{servo: 1, value: 333}"
+ * rostopic pub -1 /servos_absolute i2cpwm_board/ServoArray "{servos:[{servo: 1, value: 300}]}"
  */
-void PCA9685Board::pwm_write(int pin, int value)
+void PCA9685Board::servo_absolute_(const pca9685_board::Servo::ConstPtr& msg)
 {
-    int ipin = pin + 1;
-    if (value >= 4096)
-        full_on_(ipin, 1);
-    else if (value > 0)
-        pwm_write_(ipin, 0, value);	// (Deactivates full-on and off by itself)
-    else
-        full_off_(ipin, 1);
+    PCA9685Board::set_pwm_interval_(msg->servo, msg->value);
 }
 
 /**
@@ -181,6 +168,25 @@ void PCA9685Board::set_pwm_freq_(float pwm_freq)
     // stabilizing and restart PWM.
     delay(1);
     wiringPiI2CWriteReg8(io_handle_, PCA9685_MODE1, restart);
+}
+
+/**
+ * Simple PWM control which sets on-tick to 0 and off-tick to value.
+ * If value is <= 0, full-off will be enabled
+ * If value is >= 4096, full-on will be enabled
+ * Every value in between enables PWM output
+ */
+void PCA9685Board::set_pwm_interval_(int pin, int value)
+{
+    if (value >= 4096)
+        full_on_(pin, 1);
+        ROS_INFO("SERVO[%d] = full_on", pin);
+    else if (value > 0)
+        pwm_write_(pin, 0, value);	// (Deactivates full-on and off by itself)
+        ROS_INFO("SERVO[%d] = %d", pin, value);
+    else
+        full_off_(pin, 1);
+        ROS_INFO("SERVO[%d] = full_off", pin);
 }
 
 /**
@@ -318,37 +324,18 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "pca9685_board_node");
     PCA9685Board board;
 
-    // Set servo to neutral position at 1.5 milliseconds
-    // (View http://en.wikipedia.org/wiki/Servo_control#Pulse_duration)
-    float millis = 1.5;
-    int tick = calcTicks(millis, HERTZ);
-    board.pwm_write(PIN_ALL, tick);
+    // // Set servo to neutral position at 1.5 milliseconds
+    // // (View http://en.wikipedia.org/wiki/Servo_control#Pulse_duration)
+    // float millis = 1.5;
+    // int tick = calcTicks(millis, HERTZ);
+    // board.pwm_write(PIN_ALL, tick);
 
-    ROS_INFO("Tick: %d", tick);
-    ROS_INFO("Pulse: %d", board.pulse);
+    // ROS_INFO("Tick: %d", tick);
+    // ROS_INFO("Pulse: %d", board.pulse);
 
-    board.pwm_write(board.servo, board.pulse);
+    // board.pwm_write(board.servo, board.pulse);
 
     ros::spin();
-
-    // ros::Rate spin_rate(1); // 1 hz
-    // while (ros::ok())
-    // {
-    //     // ... do some work, publish some messages, etc. ...
-    //     // That's a hack. We need a random number < 1
-    //     float r = rand();
-    //     while (r > 1) r /= 10;
-
-    //     millis = map(r, 1, 2);
-    //     tick = calcTicks(millis, HERTZ);
-
-    //     ROS_INFO("Tick: %d", tick);
-
-    //     board.pwm_write(PIN_BASE + 16, tick);
-
-    //     ros::spinOnce();
-    //     spin_rate.sleep();
-    // }
 
     return 0;
 }
