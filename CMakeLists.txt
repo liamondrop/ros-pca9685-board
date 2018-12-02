@@ -15,7 +15,8 @@ set(wiringPi_DEPS pthread m crypt rt)
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(INCLUDE_DIRS include
+catkin_package(
+#  INCLUDE_DIRS include
 #  LIBRARIES learning_joy
 #  CATKIN_DEPENDS joy roscpp turtlesim
 #  DEPENDS system_lib
