@@ -26,7 +26,17 @@
  */
 int base_register_(const int pin)
 {
-	return (pin >= PIN_ALL ? LEDALL_ON_L : LED0_ON_L + 4 * pin);
+    return (pin >= PIN_ALL ? LEDALL_ON_L : LED0_ON_L + 4 * pin);
+}
+
+int get_int_param_(XmlRpc::XmlRpcValue obj, std::string param_name)
+{
+    XmlRpc::XmlRpcValue &item = obj[param_name];
+    if (item.getType() == XmlRpc::XmlRpcValue::TypeInt)
+        return item;
+
+    ROS_WARN("invalid paramter type for %s - expected TypeInt", param_name.c_str());
+    return 0;
 }
 
 
@@ -34,11 +44,8 @@ class PCA9685Board
 {
 public:
     PCA9685Board();
-    int pulse;
-    int servo;
 
 private:
-    void joyCallback(const geometry_msgs::Twist::ConstPtr& twist);
     void servo_absolute_(const pca9685_board::Servo::ConstPtr& msg);
     int  setup_(const int i2c_address, float pwm_freq);
     void reset_all_();
@@ -51,10 +58,7 @@ private:
     ros::NodeHandle nh_;
 
     int io_handle_;
-    int linear_, angular_;
-    double l_scale_, a_scale_;
-    ros::Publisher vel_pub_;
-    ros::Subscriber joy_sub_;
+    std::vector<std::map<std::string, int> > servos_;
     ros::Subscriber abs_sub_;
 };
 
@@ -70,19 +74,69 @@ PCA9685Board::PCA9685Board()
     // Reset all output
     reset_all_();
 
-    nh_.param("scale_linear", a_scale_, a_scale_);
-    nh_.param("scale_angular", l_scale_, l_scale_);
-    nh_.param("/pca9685_board_node/servo", servo, servo);
-    nh_.param("/pca9685_board_node/pulse", pulse, pulse);
-    joy_sub_ = nh_.subscribe<geometry_msgs::Twist>("joy", 10, &PCA9685Board::joyCallback, this);
-    abs_sub_ = nh_.subscribe<pca9685_board::Servo>("servo_absolute", 1, &PCA9685Board::servo_absolute_, this);
-}
+    // if (nh_.hasParam("servos"))
+    // {
+    //     XmlRpc::XmlRpcValue servos_;
+    //     nh_.getParam("servos", servos_);
 
-void PCA9685Board::joyCallback(const geometry_msgs::Twist::ConstPtr& twist)
-{
-    geometry_msgs::Twist twist2;
-    twist2.angular.z = a_scale_ * twist->angular.z;
-    twist2.linear.x = l_scale_ * twist->linear.x;
+    //     if (servos.getType() == XmlRpc::XmlRpcValue::TypeArray)
+    //     {
+    //         ROS_INFO(
+    //             "Retrieving members from 'servos_' in namespace(%s)",
+    //             nh_.getNamespace().c_str());
+                
+    //         for (int i = 0; i < servos.size(); ++i)
+    //         {
+    //             XmlRpc::XmlRpcValue servo;
+    //             servo = servos[i];	// get the data from the iterator
+    //             if (servo.getType() == XmlRpc::XmlRpcValue::TypeStruct)
+    //             {
+    //                 ROS_INFO(
+    //                     "Retrieving items from 'servo_config' member %d in namespace(%s)",
+    //                     i, nh_.getNamespace().c_str());
+
+    //                 // get the servo settings
+    //                 int id, center, direction, range;
+    //                 int id = get_int_param_(servo, "servo");
+    //                 int center = get_int_param_(servo, "center");
+    //                 int direction = get_int_param_(servo, "direction");
+    //                 int range = get_int_param_(servo, "range");
+                    
+    //                 if (id && center && direction && range)
+    //                 {
+    //                     if ((id >= 1) && (id <= MAX_SERVOS))
+    //                     {
+    //                         int board = ((int)(id / 16)) + 1;
+    //                         _set_active_board (board);
+    //                         _set_pwm_frequency (pwm);
+    //                         _config_servo (id, center, range, direction);
+    //                     }
+    //                     else
+    //                     {
+    //                         ROS_WARN("Parameter servo=%d is out of bounds", id);
+    //                     }
+    //                 }
+    //                 else
+    //                 {
+    //                     ROS_WARN("Invalid parameters for servo=%d'", id);
+    //                 }
+    //             }
+    //             else
+    //             {
+    //                 ROS_WARN(
+    //                     "Invalid type %d for member of 'servo_config' - expected TypeStruct(%d)",
+    //                     servo.getType(), XmlRpc::XmlRpcValue::TypeStruct);
+    //             }
+    //         }
+    //     }
+    //     else {
+    //         ROS_WARN(
+    //             "Invalid type %d for 'servos' - expected TypeArray(%d)",
+    //             servos_.getType(), XmlRpc::XmlRpcValue::TypeArray);
+    //     }
+    // }
+
+    abs_sub_ = nh_.subscribe<pca9685_board::Servo>("servo_absolute", 1, &PCA9685Board::servo_absolute_, this);
 }
 
 /**
@@ -107,7 +161,6 @@ void PCA9685Board::servo_absolute_(const pca9685_board::Servo::ConstPtr& msg)
 /**
  * Setup the PCA9685 board with wiringPi.
  *  
- * pin_base:    Use a pinBase > 64, eg. 300
  * i2c_address: The default address is 0x40
  * pwm_freq:    Frequency will be capped to range [40..1000] Hertz.
  *              Try 50 for servos
@@ -254,92 +307,10 @@ void PCA9685Board::full_off_(int pin, int tf)
     wiringPiI2CWriteReg8(io_handle_, reg, state);
 }
 
-// /**
-//  * \private method to set a value for a PWM channel, based on a range of ±1.0, on the active board
-//  *
-//  *The pulse defined by start/stop will be active on the specified servo channel until any subsequent call changes it.
-//  *@param servo an int value (1..16) indicating which channel to change power
-//  *@param value an int value (±1.0) indicating when the size of the pulse for the channel.
-//  *Example _set_pwm_interval (3, 0, 350)    // set servo #3 (fourth position on the hardware board) with a pulse of 350
-//  */
-// void _set_pwm_interval_proportional_(int servo, float value)
-// {
-//     // need a little wiggle room to allow for accuracy of a
-//     // floating point value
-//     if ((value < -1.0001) || (value > 1.0001)) {
-//         ROS_ERROR("Invalid proportion value %f :: proportion \
-//             values must be between -1.0 and 1.0", value);
-//         return;
-//     }
-
-//     servo_config* configp = &(_servo_configs[servo-1]);
-
-//     if ((configp->center < 0) ||(configp->range < 0)) {
-//         ROS_ERROR("Missing servo configuration for servo[%d]", servo);
-//         return;
-//     }
-
-//     int pos = (configp->direction * (((float)(configp->range) / 2) * value)) +
-//         configp->center;
-
-//     if ((pos < 0) || (pos > 4096)) {
-//         ROS_ERROR(
-//             "Invalid computed position servo[%d] = (direction(%d) * ((range(%d) / 2) * value(%6.4f))) + %d = %d",
-//             servo, configp->direction, configp->range, value, configp->center, pos);
-//         return;
-//     }
-//     _set_pwm_interval(servo, 0, pos);
-//     ROS_DEBUG(
-//         "servo[%d] = (direction(%d) * ((range(%d) / 2) * value(%6.4f))) + %d = %d",
-//         servo, configp->direction, configp->range, value, configp->center, pos);
-// }
-
-// void servos_proportional(const i2cpwm_board::ServoArray::ConstPtr& msg)
-// {
-//     /* this subscription works on the active_board */
-
-//     for (std::vector<i2cpwm_board::Servo>::const_iterator sp = msg->servos.begin(); sp != msg->servos.end(); ++sp) {
-//         int servo = sp->servo;
-//         float value = sp->value;
-//         ROS_INFO("servo[%d] = %d", servo, value);
-//         _set_pwm_interval_proportional(servo, value);
-//     }
-// }
-
-/**
- * Calculate the number of ticks the signal should be high
- * for the required amount of time
- */
-int calcTicks(float impulseMs, int hertz)
-{
-	float cycleMs = 1000.0f / hertz;
-	return (int)(MAX_PWM * impulseMs / cycleMs + 0.5f);
-}
-
-/**
- * input is [0..1]
- * output is [min..max]
- */
-float map(float input, float min, float max)
-{
-	return (input * max) + (1 - input) * min;
-}
-
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "pca9685_board_node");
     PCA9685Board board;
-
-    // // Set servo to neutral position at 1.5 milliseconds
-    // // (View http://en.wikipedia.org/wiki/Servo_control#Pulse_duration)
-    // float millis = 1.5;
-    // int tick = calcTicks(millis, HERTZ);
-    // board.pwm_write(PIN_ALL, tick);
-
-    // ROS_INFO("Tick: %d", tick);
-    // ROS_INFO("Pulse: %d", board.pulse);
-
-    // board.pwm_write(board.servo, board.pulse);
 
     ros::spin();
 
