@@ -14,10 +14,11 @@
 #define LED0_ON_L   0x6
 #define LEDALL_ON_L 0xFA
 
-#define I2C_ADDRESS 0x40
 #define PIN_ALL     16
 #define PIN_BASE    300
 #define MAX_PWM     4096
+
+#define I2C_ADDRESS 0x40
 #define HERTZ       50
 
 
@@ -44,36 +45,38 @@ class PCA9685Board
 {
 public:
     PCA9685Board();
+    int setup(const int i2c_address, float pwm_freq);
+    void set_pwm_interval(int pin, int value);
 
 private:
+    void get_servo_params_(XmlRpc::XmlRpcValue servos);
     void servo_absolute_(const pca9685_board::Servo::ConstPtr& msg);
-    int  setup_(const int i2c_address, float pwm_freq);
     void reset_all_();
     void set_pwm_freq_(float pwm_freq);
-    void set_pwm_interval_(int pin, int value);
     void pwm_write_(int pin, int on, int off);
     void full_on_(int pin, int tf);
     void full_off_(int pin, int tf);
 
-    ros::NodeHandle nh_;
-
     int io_handle_;
-    std::vector<std::map<std::string, int> > servos_;
+
+    ros::NodeHandle nh_;
     ros::Subscriber abs_sub_;
 };
 
 
 PCA9685Board::PCA9685Board()
 {
-    if (0 > setup_(I2C_ADDRESS, HERTZ))
+    if (0 > setup(I2C_ADDRESS, HERTZ))
     {
         ROS_ERROR("Error in setup.");
         return;
     }
 
-    // Reset all output
-    reset_all_();
+    abs_sub_ = nh_.subscribe<pca9685_board::Servo>("servo_absolute", 1, &PCA9685Board::servo_absolute_, this);
+}
 
+void PCA9685Board::get_servo_params_(XmlRpc::XmlRpcValue servos)
+{
     // if (nh_.hasParam("servos"))
     // {
     //     XmlRpc::XmlRpcValue servos_;
@@ -135,8 +138,6 @@ PCA9685Board::PCA9685Board()
     //             servos_.getType(), XmlRpc::XmlRpcValue::TypeArray);
     //     }
     // }
-
-    abs_sub_ = nh_.subscribe<pca9685_board::Servo>("servo_absolute", 1, &PCA9685Board::servo_absolute_, this);
 }
 
 /**
@@ -155,7 +156,7 @@ PCA9685Board::PCA9685Board()
  */
 void PCA9685Board::servo_absolute_(const pca9685_board::Servo::ConstPtr& msg)
 {
-    PCA9685Board::set_pwm_interval_(msg->servo, msg->value);
+    PCA9685Board::set_pwm_interval(msg->servo, msg->value);
 }
 
 /**
@@ -165,7 +166,7 @@ void PCA9685Board::servo_absolute_(const pca9685_board::Servo::ConstPtr& msg)
  * pwm_freq:    Frequency will be capped to range [40..1000] Hertz.
  *              Try 50 for servos
  */
-int PCA9685Board::setup_(const int i2c_address, float pwm_freq)
+int PCA9685Board::setup(const int i2c_address, float pwm_freq)
 {
     wiringPiSetupGpio();
 
@@ -189,7 +190,41 @@ int PCA9685Board::setup_(const int i2c_address, float pwm_freq)
     // Set frequency of PWM signals. Also ends sleep mode and starts PWM output.
     if (pwm_freq > 0) set_pwm_freq_(pwm_freq);
 
+    // Reset all output
+    reset_all_();
+
     return fd;
+}
+
+/**
+ * Simple PWM control which sets on-tick to 0 and off-tick to value.
+ * If value is <= 0, full-off will be enabled
+ * If value is >= 4096, full-on will be enabled
+ * Every value in between enables PWM output
+ */
+void PCA9685Board::set_pwm_interval(int pin, int value)
+{
+    if (value >= 4096)
+    {
+        full_on_(pin, 1);
+    }
+    else if (value > 0)
+    {
+        pwm_write_(pin, 0, value);
+    }
+    else
+    {
+        full_off_(pin, 1);
+    }
+}
+
+/**
+ * Set all leds back to default values (: fullOff = 1)
+ */
+void PCA9685Board::reset_all_()
+{
+    wiringPiI2CWriteReg16(io_handle_, LEDALL_ON_L,     0x0);
+    wiringPiI2CWriteReg16(io_handle_, LEDALL_ON_L + 2, 0x1000);
 }
 
 /**
@@ -221,40 +256,6 @@ void PCA9685Board::set_pwm_freq_(float pwm_freq)
     // stabilizing and restart PWM.
     delay(1);
     wiringPiI2CWriteReg8(io_handle_, PCA9685_MODE1, restart);
-}
-
-/**
- * Simple PWM control which sets on-tick to 0 and off-tick to value.
- * If value is <= 0, full-off will be enabled
- * If value is >= 4096, full-on will be enabled
- * Every value in between enables PWM output
- */
-void PCA9685Board::set_pwm_interval_(int pin, int value)
-{
-    if (value >= 4096)
-    {
-        full_on_(pin, 1);
-        ROS_INFO("SERVO[%d] = full_on", pin);
-    }
-    else if (value > 0)
-    {
-        pwm_write_(pin, 0, value);
-        ROS_INFO("SERVO[%d] = %d", pin, value);
-    }
-    else
-    {
-        full_off_(pin, 1);
-        ROS_INFO("SERVO[%d] = full_off", pin);
-    }
-}
-
-/**
- * Set all leds back to default values (: fullOff = 1)
- */
-void PCA9685Board::reset_all_()
-{
-    wiringPiI2CWriteReg16(io_handle_, LEDALL_ON_L,     0x0);
-    wiringPiI2CWriteReg16(io_handle_, LEDALL_ON_L + 2, 0x1000);
 }
 
 /**
