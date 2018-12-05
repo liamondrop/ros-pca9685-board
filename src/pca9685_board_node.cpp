@@ -129,8 +129,7 @@ void get_servo_params_(XmlRpc::XmlRpcValue servos)
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "pca9685_board_node");
-    PCA9685Board board;
-    board.setup(I2C_ADDRESS);
+    PCA9685Board board(I2C_ADDRESS);
     board.set_pwm_freq(PWM_FREQ);
 
     ros::spin();
