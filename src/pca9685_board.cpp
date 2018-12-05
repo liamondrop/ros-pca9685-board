@@ -24,9 +24,11 @@ int base_register_(const int pin)
     return (pin >= PIN_ALL ? LEDALL_ON_L : LED0_ON_L + 4 * pin);
 }
 
-PCA9685Board::PCA9685Board()
+PCA9685Board::PCA9685Board(const int i2c_address)
 {
     wiringPiSetupGpio();
+    setup_(i2c_address);
+    reset_all_();
 }
 
 PCA9685Board::~PCA9685Board()
@@ -39,7 +41,7 @@ PCA9685Board::~PCA9685Board()
  * pwm_freq:    Frequency will be capped to range [40..1000] Hertz.
  *              Try 50 for servos
  */
-int PCA9685Board::setup(const int i2c_address)
+int PCA9685Board::setup_(int i2c_address)
 {
     // Create a node with 16 pins [0..15] + [16] for all
     struct wiringPiNodeStruct *node = wiringPiNewNode(PIN_BASE, PIN_ALL + 1);
@@ -57,9 +59,6 @@ int PCA9685Board::setup(const int i2c_address)
     int auto_inc = settings | 0x20;
 
     wiringPiI2CWriteReg8(fd, PCA9685_MODE1, auto_inc);
-
-    // Reset all output
-    reset_all_();
 
     return fd;
 }
