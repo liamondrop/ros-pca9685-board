@@ -1,5 +1,3 @@
-#include <ros/ros.h>
-
 #include <wiringPi.h>
 #include <wiringPiI2C.h>
 
@@ -30,6 +28,9 @@ PCA9685Board::PCA9685Board()
 {
     wiringPiSetupGpio();
 }
+
+PCA9685Board::~PCA9685Board()
+{}
 
 /**
  * Setup the PCA9685 board with wiringPi.
@@ -176,11 +177,4 @@ void PCA9685Board::full_off_(int pin, int tf)
     state = tf ? (state | 0x10) : (state & 0xEF);
 
     wiringPiI2CWriteReg8(io_handle_, reg, state);
-}
-
-int main(int argc, char** argv)
-{
-    ros::init(argc, argv, "pca9685_board_node");
-    PCA9685Board board;
-    return 0;
 }
