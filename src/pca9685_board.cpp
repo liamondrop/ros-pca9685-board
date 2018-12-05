@@ -39,7 +39,7 @@ PCA9685Board::~PCA9685Board()
  * pwm_freq:    Frequency will be capped to range [40..1000] Hertz.
  *              Try 50 for servos
  */
-int PCA9685Board::setup(const int i2c_address, float pwm_freq)
+int PCA9685Board::setup(const int i2c_address)
 {
     // Create a node with 16 pins [0..15] + [16] for all
     struct wiringPiNodeStruct *node = wiringPiNewNode(PIN_BASE, PIN_ALL + 1);
@@ -58,13 +58,41 @@ int PCA9685Board::setup(const int i2c_address, float pwm_freq)
 
     wiringPiI2CWriteReg8(fd, PCA9685_MODE1, auto_inc);
 
-    // Set frequency of PWM signals. Also ends sleep mode and starts PWM output.
-    if (pwm_freq > 0) set_pwm_freq_(pwm_freq);
-
     // Reset all output
     reset_all_();
 
     return fd;
+}
+
+/**
+ * Set the frequency of PWM signals.
+ * Frequency will be capped to range [40..1000] Hertz. Try 50 for servos.
+ */
+void PCA9685Board::set_pwm_freq(float pwm_freq)
+{
+    // Cap at min and max
+    pwm_freq = (pwm_freq > 1000 ? 1000 : (pwm_freq < 40 ? 40 : pwm_freq));
+
+    // To set pwm frequency we have to set the prescale register. The formula is:
+    // prescale = round(osc_clock / (4096 * frequency))) - 1 where osc_clock = 25 MHz
+    // Further info here: http://www.nxp.com/documents/data_sheet/PCA9685.pdf Page 24
+    int prescale = (int)(25000000.0f / (4096 * pwm_freq) - 0.5f);
+
+    // Get settings and calc bytes for the different states.
+    int settings = wiringPiI2CReadReg8(io_handle_, PCA9685_MODE1) & 0x7F;   // Set restart bit to 0
+    int sleep    = settings | 0x10;                                 // Set sleep bit to 1
+    int wake     = settings & 0xEF;                                 // Set sleep bit to 0
+    int restart  = wake | 0x80;                                     // Set restart bit to 1
+
+    // Go to sleep, set prescale and wake up again.
+    wiringPiI2CWriteReg8(io_handle_, PCA9685_MODE1, sleep);
+    wiringPiI2CWriteReg8(io_handle_, PCA9685_PRESCALE, prescale);
+    wiringPiI2CWriteReg8(io_handle_, PCA9685_MODE1, wake);
+
+    // Now wait a millisecond until oscillator finished
+    // stabilizing and restart PWM.
+    delay(1);
+    wiringPiI2CWriteReg8(io_handle_, PCA9685_MODE1, restart);
 }
 
 /**
@@ -96,37 +124,6 @@ void PCA9685Board::reset_all_()
 {
     wiringPiI2CWriteReg16(io_handle_, LEDALL_ON_L,     0x0);
     wiringPiI2CWriteReg16(io_handle_, LEDALL_ON_L + 2, 0x1000);
-}
-
-/**
- * Set the frequency of PWM signals.
- * Frequency will be capped to range [40..1000] Hertz. Try 50 for servos.
- */
-void PCA9685Board::set_pwm_freq_(float pwm_freq)
-{
-    // Cap at min and max
-    pwm_freq = (pwm_freq > 1000 ? 1000 : (pwm_freq < 40 ? 40 : pwm_freq));
-
-    // To set pwm frequency we have to set the prescale register. The formula is:
-    // prescale = round(osc_clock / (4096 * frequency))) - 1 where osc_clock = 25 MHz
-    // Further info here: http://www.nxp.com/documents/data_sheet/PCA9685.pdf Page 24
-    int prescale = (int)(25000000.0f / (4096 * pwm_freq) - 0.5f);
-
-    // Get settings and calc bytes for the different states.
-    int settings = wiringPiI2CReadReg8(io_handle_, PCA9685_MODE1) & 0x7F;   // Set restart bit to 0
-    int sleep    = settings | 0x10;                                 // Set sleep bit to 1
-    int wake     = settings & 0xEF;                                 // Set sleep bit to 0
-    int restart  = wake | 0x80;                                     // Set restart bit to 1
-
-    // Go to sleep, set prescale and wake up again.
-    wiringPiI2CWriteReg8(io_handle_, PCA9685_MODE1, sleep);
-    wiringPiI2CWriteReg8(io_handle_, PCA9685_PRESCALE, prescale);
-    wiringPiI2CWriteReg8(io_handle_, PCA9685_MODE1, wake);
-
-    // Now wait a millisecond until oscillator finished
-    // stabilizing and restart PWM.
-    delay(1);
-    wiringPiI2CWriteReg8(io_handle_, PCA9685_MODE1, restart);
 }
 
 /**
