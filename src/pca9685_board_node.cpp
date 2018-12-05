@@ -11,7 +11,7 @@
 int get_int_param_(XmlRpc::XmlRpcValue obj, std::string param_name)
 {
     XmlRpc::XmlRpcValue &value = obj[param_name];
-    ROS_ASSERT(item.getType() == XmlRpc::XmlRpcValue::TypeInt);
+    ROS_ASSERT(value.getType() == XmlRpc::XmlRpcValue::TypeInt);
     return static_cast<int>(value);
 }
 
