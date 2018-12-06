@@ -22,20 +22,6 @@ int get_int_param_(XmlRpc::XmlRpcValue obj, std::string param_name)
     return value;
 }
 
-servo_config get_servo_config_(XmlRpc::XmlRpcValue obj, std::string param_name)
-{
-    ROS_ASSERT(obj.hasMember(param_name));
-    XmlRpc::XmlRpcValue& value = obj[param_name];
-    ROS_ASSERT(value.getType() == XmlRpc::XmlRpcValue::TypeStruct);
-
-    servo_config config;
-    config.center = get_int_param_(value, "center");
-    config.direction = get_int_param_(value, "direction");
-    config.pin = get_int_param_(value, "pin");
-    config.range = get_int_param_(value, "range");
-    return config;
-}
-
 
 class PCA9685BoardNode
 {
@@ -46,6 +32,7 @@ public:
 
 private:
     void servo_absolute_(const pca9685_board::Servo::ConstPtr& msg);
+    void configure_servo_(servo_config& servo_conf, std::string param_name);
 
     ros::NodeHandle nh_;
     ros::Subscriber abs_sub_;
@@ -58,22 +45,29 @@ private:
 PCA9685BoardNode::PCA9685BoardNode()
 {
     board_.setup(I2C_ADDRESS, PWM_FREQ);
+    configure_servo_(servo_throttle_, "/servos/throttle");
+    configure_servo_(servo_steering_, "/servos/steering");
+
     abs_sub_ = nh_.subscribe<pca9685_board::Servo>(
         "servo_absolute", 1, &PCA9685BoardNode::servo_absolute_, this);
 }
 
-void PCA9685BoardNode::configure_servos()
+void PCA9685BoardNode::configure_servo_(servo_config& config, std::string servo_name)
 {
-    ROS_ASSERT(nh_.hasParam("servos"));
+    ROS_ASSERT(nh_.hasParam(servo_name));
+    XmlRpc::XmlRpcValue servo_params;
+    nh_.getParam(servo_name, servo_params);
 
-    XmlRpc::XmlRpcValue servos;
-    nh_.getParam("servos", servos);
+    config.center = get_int_param_(servo_params, "center");
+    config.direction = get_int_param_(servo_params, "direction");
+    config.pin = get_int_param_(servo_params, "pin");
+    config.range = get_int_param_(servo_params, "range");
 
-    ROS_ASSERT(servos.getType() == XmlRpc::XmlRpcValue::TypeStruct);
-
-    servo_throttle_ = get_servo_config_(servos, "throttle");
-    servo_steering_ = get_servo_config_(servos, "steering");
+    ROS_INFO("SERVO (%s) - CENTER: %d, DIRECTION: %d, PIN: %d, RANGE %d",
+        servo_name.c_str(), config.center, config.direction,
+        config.pin, config.range);
 }
+
 
 /**
  * Subscriber for the servo_absolute topic which processes a servo and sets its physical pulse value.
@@ -87,7 +81,6 @@ void PCA9685BoardNode::configure_servos()
  * rostopic pub servo_absolute pca9685_board/Servo "{servo: 1, value: 330}"
  * rostopic pub servo_absolute pca9685_board/Servo "{servo: 1, value: 335}"
  * rostopic pub servo_absolute pca9685_board/Servo "{servo: 1, value: 333}"
- * rostopic pub -1 /servos_absolute i2cpwm_board/ServoArray "{servos:[{servo: 1, value: 300}]}"
  */
 void PCA9685BoardNode::servo_absolute_(const pca9685_board::Servo::ConstPtr& msg)
 {
