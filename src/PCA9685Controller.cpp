@@ -1,7 +1,7 @@
 #include <wiringPi.h>
 #include <wiringPiI2C.h>
 
-#include "pca9685_board/pca9685_board.h"
+#include "pca9685_board/PCA9685Controller.h"
 
 // Setup registers
 #define PCA9685_MODE1    0x0
@@ -24,12 +24,12 @@ int base_register_(const int pin)
     return (pin >= PIN_ALL ? LEDALL_ON_L : LED0_ON_L + 4 * pin);
 }
 
-PCA9685Board::PCA9685Board()
+PCA9685Controller::PCA9685Controller()
 {
     wiringPiSetupGpio();
 }
 
-PCA9685Board::~PCA9685Board()
+PCA9685Controller::~PCA9685Controller()
 {}
 
 /**
@@ -39,7 +39,7 @@ PCA9685Board::~PCA9685Board()
  * pwm_freq:    Frequency will be capped to range [40..1000] Hertz.
  *              Try 50 for servos
  */
-int PCA9685Board::setup(const int i2c_address, float pwm_freq)
+int PCA9685Controller::setup(const int i2c_address, float pwm_freq)
 {
     // Create a node with 16 pins [0..15] + [16] for all
     struct wiringPiNodeStruct *node = wiringPiNewNode(PIN_BASE, PIN_ALL + 1);
@@ -68,7 +68,7 @@ int PCA9685Board::setup(const int i2c_address, float pwm_freq)
  * Set the frequency of PWM signals.
  * Frequency will be capped to range [40..1000] Hertz. Try 50 for servos.
  */
-void PCA9685Board::set_pwm_freq_(float pwm_freq)
+void PCA9685Controller::set_pwm_freq_(float pwm_freq)
 {
     // Cap at min and max
     pwm_freq = (pwm_freq > 1000 ? 1000 : (pwm_freq < 40 ? 40 : pwm_freq));
@@ -101,7 +101,7 @@ void PCA9685Board::set_pwm_freq_(float pwm_freq)
  * If value is >= 4096, full-on will be enabled
  * Every value in between enables PWM output
  */
-void PCA9685Board::set_pwm_interval(int pin, int value)
+void PCA9685Controller::set_pwm_interval(int pin, int value)
 {
     if (value >= 4096)
     {
@@ -120,7 +120,7 @@ void PCA9685Board::set_pwm_interval(int pin, int value)
 /**
  * Set all leds back to default values (: fullOff = 1)
  */
-void PCA9685Board::reset_all_()
+void PCA9685Controller::reset_all_()
 {
     wiringPiI2CWriteReg16(io_handle_, LEDALL_ON_L,     0x0);
     wiringPiI2CWriteReg16(io_handle_, LEDALL_ON_L + 2, 0x1000);
@@ -130,7 +130,7 @@ void PCA9685Board::reset_all_()
  * Write on and off ticks manually to a pin
  * (Deactivates any full-on and full-off)
  */
-void PCA9685Board::pwm_write_(int pin, int on, int off)
+void PCA9685Controller::pwm_write_(int pin, int on, int off)
 {
     int reg = base_register_(pin);
 
@@ -145,7 +145,7 @@ void PCA9685Board::pwm_write_(int pin, int on, int off)
  * tf = true: full-on
  * tf = false: according to PWM
  */
-void PCA9685Board::full_on_(int pin, int tf)
+void PCA9685Controller::full_on_(int pin, int tf)
 {
     int reg = base_register_(pin) + 1;  // LEDX_ON_H
     int state = wiringPiI2CReadReg8(io_handle_, reg);
@@ -165,7 +165,7 @@ void PCA9685Board::full_on_(int pin, int tf)
  * tf = true: full-off
  * tf = false: according to PWM or full-on
  */
-void PCA9685Board::full_off_(int pin, int tf)
+void PCA9685Controller::full_off_(int pin, int tf)
 {
     int reg = base_register_(pin) + 3;  // LEDX_OFF_H
     int state = wiringPiI2CReadReg8(io_handle_, reg);

@@ -21,12 +21,13 @@ catkin_package(CATKIN_DEPENDS message_runtime)
 include_directories(include ${catkin_INCLUDE_DIRS})
 
 set(SOURCES
-    src/pca9685_board_node.cpp
-    src/pca9685_board.cpp
+    src/main.cpp
+    src/PCA9685Node.cpp
+    # src/PCA9685Controller.cpp
 )
 
-add_executable(pca9685_board ${SOURCES})
-target_link_libraries(pca9685_board
+add_executable(pca9685_board_node ${SOURCES})
+target_link_libraries(pca9685_board_node
     ${catkin_LIBRARIES}
-    ${wiringPi_LIB}
+    # ${wiringPi_LIB}
 )

@@ -13,5 +13,5 @@
         range: 180
   </rosparam>
 
-  <node pkg="pca9685_board" name="pca9685_board_node" type="pca9685_board" output="screen" />
+  <node pkg="pca9685_board" name="pca9685_board_node" type="pca9685_board_node" output="screen" />
 </launch>
