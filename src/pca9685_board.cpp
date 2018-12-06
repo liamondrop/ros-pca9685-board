@@ -24,11 +24,9 @@ int base_register_(const int pin)
     return (pin >= PIN_ALL ? LEDALL_ON_L : LED0_ON_L + 4 * pin);
 }
 
-PCA9685Board::PCA9685Board(const int i2c_address)
+PCA9685Board::PCA9685Board()
 {
     wiringPiSetupGpio();
-    setup_(i2c_address);
-    reset_all_();
 }
 
 PCA9685Board::~PCA9685Board()
@@ -41,7 +39,7 @@ PCA9685Board::~PCA9685Board()
  * pwm_freq:    Frequency will be capped to range [40..1000] Hertz.
  *              Try 50 for servos
  */
-int PCA9685Board::setup_(int i2c_address)
+int PCA9685Board::setup(const int i2c_address, float pwm_freq)
 {
     // Create a node with 16 pins [0..15] + [16] for all
     struct wiringPiNodeStruct *node = wiringPiNewNode(PIN_BASE, PIN_ALL + 1);
@@ -60,6 +58,9 @@ int PCA9685Board::setup_(int i2c_address)
 
     wiringPiI2CWriteReg8(fd, PCA9685_MODE1, auto_inc);
 
+    set_pwm_freq_(pwm_freq);
+    reset_all_();
+
     return fd;
 }
 
@@ -67,7 +68,7 @@ int PCA9685Board::setup_(int i2c_address)
  * Set the frequency of PWM signals.
  * Frequency will be capped to range [40..1000] Hertz. Try 50 for servos.
  */
-void PCA9685Board::set_pwm_freq(float pwm_freq)
+void PCA9685Board::set_pwm_freq_(float pwm_freq)
 {
     // Cap at min and max
     pwm_freq = (pwm_freq > 1000 ? 1000 : (pwm_freq < 40 ? 40 : pwm_freq));
