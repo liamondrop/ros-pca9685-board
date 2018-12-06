@@ -90,7 +90,7 @@ void PCA9685BoardNode::configure_servos()
  */
 void PCA9685BoardNode::servo_absolute_(const pca9685_board::Servo::ConstPtr& msg)
 {
-    board.set_pwm_interval(msg->servo, msg->value);
+    board_.set_pwm_interval(msg->servo, msg->value);
 }
 
 
