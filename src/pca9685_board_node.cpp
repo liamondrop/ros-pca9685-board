@@ -49,7 +49,7 @@ private:
 
     ros::NodeHandle nh_;
     ros::Subscriber abs_sub_;
-    PCA9685Board board_(I2C_ADDRESS);
+    PCA9685Board board_;
     servo_config servo_steering_;
     servo_config servo_throttle_;
 };
@@ -57,7 +57,7 @@ private:
 
 PCA9685BoardNode::PCA9685BoardNode()
 {
-    board_.set_pwm_freq(PWM_FREQ);
+    board_.setup(I2C_ADDRESS, PWM_FREQ);
 }
 
 void PCA9685BoardNode::configure_servos()
