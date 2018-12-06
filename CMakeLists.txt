@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(pca9685_board)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wpedantic")
 
 find_library(wiringPi_LIB wiringPi)
 
