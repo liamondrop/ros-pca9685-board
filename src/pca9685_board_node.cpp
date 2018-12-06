@@ -58,7 +58,8 @@ private:
 PCA9685BoardNode::PCA9685BoardNode()
 {
     board_.setup(I2C_ADDRESS, PWM_FREQ);
-    abs_sub_ = nh_.subscribe<pca9685_board::Servo>("servos_absolute", 1);
+    abs_sub_ = nh_.subscribe<pca9685_board::Servo>(
+        "servo_absolute", 1, &PCA9685BoardNode::servo_absolute_, this);
 }
 
 void PCA9685BoardNode::configure_servos()
