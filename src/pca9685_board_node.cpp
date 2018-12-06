@@ -58,6 +58,7 @@ private:
 PCA9685BoardNode::PCA9685BoardNode()
 {
     board_.setup(I2C_ADDRESS, PWM_FREQ);
+    abs_sub_ = nh_.subscribe<pca9685_board::Servo>("servos_absolute", 1);
 }
 
 void PCA9685BoardNode::configure_servos()
@@ -89,7 +90,7 @@ void PCA9685BoardNode::configure_servos()
  */
 void PCA9685BoardNode::servo_absolute_(const pca9685_board::Servo::ConstPtr& msg)
 {
-    PCA9685Board::set_pwm_interval(msg->servo, msg->value);
+    board.set_pwm_interval(msg->servo, msg->value);
 }
 
 
