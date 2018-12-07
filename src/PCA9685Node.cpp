@@ -7,7 +7,7 @@ using namespace pca9685_board;
 
 PCA9685Node::PCA9685Node()
 {
-    // ROS_ASSERT(0 > board_controller_.setup(I2C_ADDRESS, PWM_FREQ));
+    ROS_ASSERT(0 < board_controller_.setup(I2C_ADDRESS, PWM_FREQ));
 
     configure_servo_(servo_throttle_, "/servos/throttle");
     configure_servo_(servo_steering_, "/servos/steering");
@@ -55,5 +55,5 @@ int PCA9685Node::get_int_param_(const std::string param_name)
  */
 void PCA9685Node::servo_absolute_(const pca9685_board::Servo::ConstPtr& msg)
 {
-    // board_controller_.set_pwm_interval(msg->servo, msg->value);
+    board_controller_.set_pwm_interval(msg->servo, msg->value);
 }

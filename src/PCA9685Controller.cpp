@@ -15,6 +15,7 @@
 #define PIN_BASE    300
 #define MAX_PWM     4096
 
+using namespace pca9685_board;
 
 /**
  * Helper function to get to register
@@ -30,7 +31,9 @@ PCA9685Controller::PCA9685Controller()
 }
 
 PCA9685Controller::~PCA9685Controller()
-{}
+{
+    reset_all_();
+}
 
 /**
  * Setup the PCA9685 board with wiringPi.
@@ -60,7 +63,6 @@ int PCA9685Controller::setup(const int i2c_address, float pwm_freq)
 
     set_pwm_freq_(pwm_freq);
     reset_all_();
-
     return fd;
 }
 
@@ -103,18 +105,9 @@ void PCA9685Controller::set_pwm_freq_(float pwm_freq)
  */
 void PCA9685Controller::set_pwm_interval(int pin, int value)
 {
-    if (value >= 4096)
-    {
-        full_on_(pin, 1);
-    }
-    else if (value > 0)
-    {
-        pwm_write_(pin, 0, value);
-    }
-    else
-    {
-        full_off_(pin, 1);
-    }
+    if (value >= 4096)  full_on_(pin, 1);
+    else if (value > 0) pwm_write_(pin, 0, value);
+    else                full_off_(pin, 1);
 }
 
 /**

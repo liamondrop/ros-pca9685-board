@@ -3,7 +3,7 @@
 
 #include <ros/ros.h>
 
-// #include "pca9685_board/PCA9685Controller.h"
+#include "pca9685_board/PCA9685Controller.h"
 #include "pca9685_board/Servo.h"
 
 namespace pca9685_board
@@ -24,12 +24,12 @@ namespace pca9685_board
 
     private:
         void servo_absolute_(const pca9685_board::Servo::ConstPtr& msg);
-        void configure_servo_(servo_config& servo_conf, std::string param_name);
+        void configure_servo_(servo_config& config, std::string param_name);
         int get_int_param_(const std::string param_name);
 
         ros::NodeHandle nh_;
         ros::Subscriber abs_sub_;
-        // PCA9685Controller board_controller_;
+        PCA9685Controller board_controller_;
         servo_config servo_steering_;
         servo_config servo_throttle_;
     };
