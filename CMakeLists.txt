@@ -23,11 +23,11 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 set(SOURCES
     src/main.cpp
     src/PCA9685Node.cpp
-    # src/PCA9685Controller.cpp
+    src/PCA9685Controller.cpp
 )
 
 add_executable(pca9685_board_node ${SOURCES})
 target_link_libraries(pca9685_board_node
     ${catkin_LIBRARIES}
-    # ${wiringPi_LIB}
+    ${wiringPi_LIB}
 )
