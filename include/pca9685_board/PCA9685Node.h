@@ -20,18 +20,19 @@ namespace pca9685_board
     public:
         PCA9685Node();
         ~PCA9685Node() {};
-        void configure_servos();
+        const servo_config* get_servo_config(std::string name);
 
     private:
         void servo_absolute_(const pca9685_board::Servo::ConstPtr& msg);
-        void configure_servo_(servo_config& config, std::string param_name);
-        int get_int_param_(const std::string param_name);
+        void servo_proportional_(const pca9685_board::Servo::ConstPtr& msg);
+        void configure_servo_(std::string name);
+        int get_int_param_(std::string name);
 
         ros::NodeHandle nh_;
         ros::Subscriber abs_sub_;
+        ros::Subscriber prop_sub_;
         PCA9685Controller board_controller_;
-        servo_config servo_steering_;
-        servo_config servo_throttle_;
+        std::map<std::string, servo_config> servos_;
     };
 }
 

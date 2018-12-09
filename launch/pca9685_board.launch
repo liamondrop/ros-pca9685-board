@@ -1,6 +1,7 @@
 <launch>
   <rosparam>
     servos:
+      pwm_frequency: 50
       throttle:
         pin: 0
         center: 320
