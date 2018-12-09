@@ -1,20 +1,20 @@
 #include "pca9685_board/PCA9685Node.h"
 
-#define I2C_ADDRESS 0x40
-#define PWM_FREQ    50
+#define I2C_ADDR 0x40
+#define PWM_FREQ 50
 
 /**
- * Callback function for the servos_drive topic
+ * Map a value between -1.0 and 1.0 to a servo's configured range.
  * 
- * Sets the values for the steering and throttle servos using
- * a standard geometry_msgs::Twist message
+ * Accepts a float value between -1.0 and 1.0
+ * Returns the corresponding PWM pulse value
  */
-int get_pwm_proportional_(
+int map_value_to_pwm_(
     const pca9685_board::servo_config* config, const float value
 )
 {
     if ((value < -1.0001) || (value > 1.0001)) {
-        ROS_ERROR("(%f) value invalid. Must be between -1.0 and 1.0", value);
+        ROS_ERROR("(%f) value must be between -1.0 and 1.0", value);
         return 0;
     }
     int pwm = (config->direction * (((float)(config->range) / 2) * value)) + config->center;
@@ -25,11 +25,11 @@ using namespace pca9685_board;
 
 PCA9685Node::PCA9685Node()
 {
-    int pwm_freq;
+    int pwm_freq, i2c_addr;
     nh_.param("/servos/pwm_frequency", pwm_freq, PWM_FREQ);
-    int fd = board_controller_.setup(I2C_ADDRESS, pwm_freq);
-    ROS_ASSERT_MSG(0 < fd,
-        "Error setting up board controller. File descriptor (%d) not valid", fd);
+    nh_.param("/servos/i2c_address", i2c_addr, I2C_ADDR);
+    int fd = board_controller_.setup(i2c_addr, pwm_freq);
+    ROS_ASSERT_MSG(0 < fd, "Board setup error. File handle invalid (%d)", fd);
 
     configure_servo_("throttle");
     configure_servo_("steering");
@@ -89,7 +89,7 @@ void PCA9685Node::set_servo_proportional_(
 )
 {
     const servo_config* config = get_servo_config(servo_name);
-    int pwm_value = get_pwm_proportional_(config, value);
+    int pwm_value = map_value_to_pwm_(config, value);
     board_controller_.set_pwm(config->channel, pwm_value);
     ROS_INFO("servo: %s, channel: %d, value: %f, pwm_value: %d",
         servo_name.c_str(), config->channel, value, pwm_value);
