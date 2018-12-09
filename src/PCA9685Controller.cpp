@@ -27,6 +27,7 @@ int base_register_(const int pin)
 
 PCA9685Controller::PCA9685Controller()
 {
+    // Setup Wiring PI
     wiringPiSetupGpio();
 }
 
@@ -38,9 +39,8 @@ PCA9685Controller::~PCA9685Controller()
 /**
  * Setup the PCA9685 board with wiringPi.
  *  
- * i2c_address: The default address is 0x40
- * pwm_freq:    Frequency will be capped to range [40..1000] Hertz.
- *              Try 50 for servos
+ * i2c_address: The address of the board on the i2c bus. Likely should be 0x40.
+ * pwm_freq:    Frequency will be limited to range [40..1000] Hertz.
  */
 int PCA9685Controller::setup(const int i2c_address, float pwm_freq)
 {
@@ -53,16 +53,16 @@ int PCA9685Controller::setup(const int i2c_address, float pwm_freq)
     // Check i2c address
     int fd = wiringPiI2CSetup(i2c_address);
     if (fd < 0) return fd;
-    io_handle_ = fd;
 
     // Setup the chip. Enable auto-increment of registers.
     int settings = wiringPiI2CReadReg8(fd, PCA9685_MODE1) & 0x7F;
     int auto_inc = settings | 0x20;
-
     wiringPiI2CWriteReg8(fd, PCA9685_MODE1, auto_inc);
 
     set_pwm_freq_(pwm_freq);
     reset_all_();
+
+    io_handle_ = fd;
     return fd;
 }
 

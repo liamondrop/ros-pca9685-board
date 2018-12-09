@@ -40,6 +40,9 @@ PCA9685Node::PCA9685Node()
         "servos_drive", 10, &PCA9685Node::servos_drive_callback_, this);
 }
 
+/**
+ * Retrieves a pointer to the requested servo configuration
+ */
 const servo_config* PCA9685Node::get_servo_config(std::string name)
 {
     if (servos_.find(name) == servos_.end()) {
@@ -49,6 +52,9 @@ const servo_config* PCA9685Node::get_servo_config(std::string name)
     return &servos_[name];
 }
 
+/**
+ * Retrieves and populates the configuration for a given servo
+ */
 void PCA9685Node::configure_servo_(const std::string name)
 {
     std::string param_name = "/servos/" + name;
