@@ -36,22 +36,22 @@ int base_register_(const int pin)
 
 PCA9685Controller::PCA9685Controller()
 {
-    // Setup Wiring PI
+    // initialize wiringPi lib
     wiringPiSetupGpio();
 }
 
 PCA9685Controller::~PCA9685Controller()
 {
+    // Set all channels back to their defaults
     reset_all_();
 }
 
 /**
  * Setup the PCA9685 board with wiringPi.
  *  
- * i2c_address: The address of the board on the i2c bus. Likely should be 0x40.
- * pwm_freq:    Frequency will be limited to range [40..1000] Hertz.
+ * i2c_address: The address of the board on the i2c bus. Defaults to 0x40.
  */
-int PCA9685Controller::setup(const int i2c_address, float pwm_freq)
+int PCA9685Controller::setup(const int i2c_address)
 {
     // Create a node with 16 pins [0..15] + [16] for all
     struct wiringPiNodeStruct *node = wiringPiNewNode(PIN_BASE, PIN_ALL + 1);
@@ -60,26 +60,36 @@ int PCA9685Controller::setup(const int i2c_address, float pwm_freq)
     if (!node) return -1;
 
     // Check i2c address
-    int fd = wiringPiI2CSetup(i2c_address);
-    if (fd < 0) return fd;
+    io_handle_ = wiringPiI2CSetup(i2c_address);
+    if (io_handle_ < 0) return io_handle_;
 
     // Setup the chip. Enable auto-increment of registers.
-    int settings = wiringPiI2CReadReg8(fd, MODE1) & 0x7F;
+    int settings = wiringPiI2CReadReg8(io_handle_, MODE1) & 0x7F;
     int auto_inc = settings | 0x20;
-    wiringPiI2CWriteReg8(fd, MODE1, auto_inc);
+    wiringPiI2CWriteReg8(io_handle_, MODE1, auto_inc);
 
-    set_pwm_freq_(pwm_freq);
     reset_all_();
+    return io_handle_;
+}
 
-    io_handle_ = fd;
-    return fd;
+/**
+ * Simple PWM control which sets on-tick to 0 and off-tick to value.
+ * If value is <= 0, full-off will be enabled
+ * If value is >= 4096, full-on will be enabled
+ * Every value in between enables PWM output
+ */
+void PCA9685Controller::set_pwm(int pin, int value)
+{
+    if (value >= MAX_PWM) full_on_(pin, 1);
+    else if (value > 0)   pwm_write_(pin, 0, value);
+    else                  full_off_(pin, 1);
 }
 
 /**
  * Set the frequency of PWM signals.
  * Frequency will be capped to range [40..1000] Hertz. Try 50 for servos.
  */
-void PCA9685Controller::set_pwm_freq_(float pwm_freq)
+void PCA9685Controller::set_pwm_freq(float pwm_freq)
 {
     // Cap at min and max
     pwm_freq = (pwm_freq > MAX_PWM_FREQ ? MAX_PWM_FREQ :
@@ -108,39 +118,19 @@ void PCA9685Controller::set_pwm_freq_(float pwm_freq)
 }
 
 /**
- * Simple PWM control which sets on-tick to 0 and off-tick to value.
- * If value is <= 0, full-off will be enabled
- * If value is >= 4096, full-on will be enabled
- * Every value in between enables PWM output
+ * Enables or deactivates full-off
+ * tf = true: full-off
+ * tf = false: according to PWM or full-on
  */
-void PCA9685Controller::set_pwm(int pin, int value)
+void PCA9685Controller::full_off_(int pin, int tf)
 {
-    if (value >= MAX_PWM) full_on_(pin, 1);
-    else if (value > 0)   pwm_write_(pin, 0, value);
-    else                  full_off_(pin, 1);
-}
+    int reg   = base_register_(pin) + 3;  // CHANNELX_OFF_H
+    int state = wiringPiI2CReadReg8(io_handle_, reg);
 
-/**
- * Set all channels back to default values (: fullOff = 1)
- */
-void PCA9685Controller::reset_all_()
-{
-    wiringPiI2CWriteReg16(io_handle_, ALL_CHANNELS_ON_L,     0x0);
-    wiringPiI2CWriteReg16(io_handle_, ALL_CHANNELS_ON_L + 2, 0x1000);
-}
+    // Set bit 4 to 1 or 0 accordingly
+    state = tf ? (state | SLEEP) : (state & WAKE);
 
-/**
- * Write on and off ticks manually to a pin
- * (Deactivates any full-on and full-off)
- */
-void PCA9685Controller::pwm_write_(int pin, int on, int off)
-{
-    int reg = base_register_(pin);
-
-    // Write to on and off registers and mask the
-    // 12 lowest bits of data to overwrite full-on and off
-    wiringPiI2CWriteReg16(io_handle_, reg,     on & 0x0FFF);
-    wiringPiI2CWriteReg16(io_handle_, reg + 2, off & 0x0FFF);
+    wiringPiI2CWriteReg8(io_handle_, reg, state);
 }
 
 /**
@@ -164,17 +154,24 @@ void PCA9685Controller::full_on_(int pin, int tf)
 }
 
 /**
- * Enables or deactivates full-off
- * tf = true: full-off
- * tf = false: according to PWM or full-on
+ * Write on and off ticks manually to a pin
+ * (Deactivates any full-on and full-off)
  */
-void PCA9685Controller::full_off_(int pin, int tf)
+void PCA9685Controller::pwm_write_(int pin, int on, int off)
 {
-    int reg   = base_register_(pin) + 3;  // CHANNELX_OFF_H
-    int state = wiringPiI2CReadReg8(io_handle_, reg);
+    int reg = base_register_(pin);
 
-    // Set bit 4 to 1 or 0 accordingly
-    state = tf ? (state | SLEEP) : (state & WAKE);
+    // Write to on and off registers and mask the
+    // 12 lowest bits of data to overwrite full-on and off
+    wiringPiI2CWriteReg16(io_handle_, reg,     on & 0x0FFF);
+    wiringPiI2CWriteReg16(io_handle_, reg + 2, off & 0x0FFF);
+}
 
-    wiringPiI2CWriteReg8(io_handle_, reg, state);
+/**
+ * Set all channels back to default values (: fullOff = 1)
+ */
+void PCA9685Controller::reset_all_()
+{
+    wiringPiI2CWriteReg16(io_handle_, ALL_CHANNELS_ON_L,     0x0);
+    wiringPiI2CWriteReg16(io_handle_, ALL_CHANNELS_ON_L + 2, 0x1000);
 }

@@ -1,6 +1,5 @@
 #include "pca9685_board/PCA9685Node.h"
 
-#define I2C_ADDR 0x40
 #define PWM_FREQ 50
 
 /**
@@ -25,15 +24,20 @@ using namespace pca9685_board;
 
 PCA9685Node::PCA9685Node()
 {
-    int pwm_freq, i2c_addr;
-    nh_.param("/servos/pwm_frequency", pwm_freq, PWM_FREQ);
-    nh_.param("/servos/i2c_address", i2c_addr, I2C_ADDR);
-    int fd = board_controller_.setup(i2c_addr, pwm_freq);
+    // Set up controller on the default i2c address
+    int fd = board_controller_.setup();
     ROS_ASSERT_MSG(0 < fd, "Board setup error. File handle invalid (%d)", fd);
 
+    // Set the pwm frequency to some value between 40 and 1000
+    // 50 is typically used for servos
+    nh_.param("/servos/pwm_frequency", pwm_freq, PWM_FREQ);
+    board_controller_.set_pwm_freq(pwm_freq);
+
+    // Load servo configurations from rosparams
     configure_servo_("throttle");
     configure_servo_("steering");
 
+    // initiate subscribers
     abs_sub_ = nh_.subscribe<pca9685_board::Servo>(
         "servo_absolute", 1, &PCA9685Node::servo_absolute_callback_, this);
     drive_sub_ = nh_.subscribe<geometry_msgs::Twist>(
@@ -97,7 +101,7 @@ void PCA9685Node::set_servo_proportional_(
     const servo_config* config = get_servo_config(servo_name);
     int pwm_value = map_value_to_pwm_(config, value);
     board_controller_.set_pwm(config->channel, pwm_value);
-    ROS_INFO("servo: %s, channel: %d, value: %f, pwm_value: %d",
+    ROS_DEBUG("servo: %s, channel: %d, value: %f, pwm_value: %d",
         servo_name.c_str(), config->channel, value, pwm_value);
 }
 
