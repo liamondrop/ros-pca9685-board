@@ -3,17 +3,26 @@
 
 #include "pca9685_board/PCA9685Controller.h"
 
-// Setup registers
-#define PCA9685_MODE1    0x0
-#define PCA9685_PRESCALE 0xFE
 
-// Define first LED and all LED. We calculate the rest
-#define LED0_ON_L   0x6
-#define LEDALL_ON_L 0xFA
+#define PIN_ALL      16
+#define PIN_BASE     300
+#define MAX_PWM      4096
+#define MIN_PWM_FREQ 40
+#define MAX_PWM_FREQ 1000
 
-#define PIN_ALL     16
-#define PIN_BASE    300
-#define MAX_PWM     4096
+// Setup registers, etc.
+enum pca9685_reg {
+    MODE1              = 0x00,
+    MODE2              = 0x01,
+    CHANNEL_ON_L       = 0x06,
+    CHANNEL_ON_H       = 0x07,
+    ALL_CHANNELS_ON_L  = 0xFA,
+    ALL_CHANNELS_ON_H  = 0xFB,
+    PRESCALE           = 0xFE,
+    RESTART            = 0x80,
+    SLEEP              = 0x10,
+    WAKE               = 0xEF
+};
 
 using namespace pca9685_board;
 
@@ -22,7 +31,7 @@ using namespace pca9685_board;
  */
 int base_register_(const int pin)
 {
-    return (pin >= PIN_ALL ? LEDALL_ON_L : LED0_ON_L + 4 * pin);
+    return (pin >= PIN_ALL ? ALL_CHANNELS_ON_L : CHANNEL_ON_L + 4 * pin);
 }
 
 PCA9685Controller::PCA9685Controller()
@@ -55,9 +64,9 @@ int PCA9685Controller::setup(const int i2c_address, float pwm_freq)
     if (fd < 0) return fd;
 
     // Setup the chip. Enable auto-increment of registers.
-    int settings = wiringPiI2CReadReg8(fd, PCA9685_MODE1) & 0x7F;
+    int settings = wiringPiI2CReadReg8(fd, MODE1) & 0x7F;
     int auto_inc = settings | 0x20;
-    wiringPiI2CWriteReg8(fd, PCA9685_MODE1, auto_inc);
+    wiringPiI2CWriteReg8(fd, MODE1, auto_inc);
 
     set_pwm_freq_(pwm_freq);
     reset_all_();
@@ -73,28 +82,29 @@ int PCA9685Controller::setup(const int i2c_address, float pwm_freq)
 void PCA9685Controller::set_pwm_freq_(float pwm_freq)
 {
     // Cap at min and max
-    pwm_freq = (pwm_freq > 1000 ? 1000 : (pwm_freq < 40 ? 40 : pwm_freq));
+    pwm_freq = (pwm_freq > MAX_PWM_FREQ ? MAX_PWM_FREQ :
+               (pwm_freq < MIN_PWM_FREQ ? MIN_PWM_FREQ : pwm_freq));
 
     // To set pwm frequency we have to set the prescale register. The formula is:
     // prescale = round(osc_clock / (4096 * frequency))) - 1 where osc_clock = 25 MHz
     // Further info here: http://www.nxp.com/documents/data_sheet/PCA9685.pdf Page 24
-    int prescale = (int)(25000000.0f / (4096 * pwm_freq) - 0.5f);
+    int prescale = (int)(25000000.0f / (MAX_PWM * pwm_freq) - 0.5f);
 
     // Get settings and calc bytes for the different states.
-    int settings = wiringPiI2CReadReg8(io_handle_, PCA9685_MODE1) & 0x7F;   // Set restart bit to 0
-    int sleep    = settings | 0x10;                                 // Set sleep bit to 1
-    int wake     = settings & 0xEF;                                 // Set sleep bit to 0
-    int restart  = wake | 0x80;                                     // Set restart bit to 1
+    int settings = wiringPiI2CReadReg8(io_handle_, MODE1) & 0x7F; // Set restart bit to 0
+    int sleep    = settings | SLEEP; // Set sleep bit to 1
+    int wake     = settings & WAKE;  // Set sleep bit to 0
+    int restart  = wake | RESTART;   // Set restart bit to 1
 
     // Go to sleep, set prescale and wake up again.
-    wiringPiI2CWriteReg8(io_handle_, PCA9685_MODE1, sleep);
-    wiringPiI2CWriteReg8(io_handle_, PCA9685_PRESCALE, prescale);
-    wiringPiI2CWriteReg8(io_handle_, PCA9685_MODE1, wake);
+    wiringPiI2CWriteReg8(io_handle_, MODE1, sleep);
+    wiringPiI2CWriteReg8(io_handle_, PRESCALE, prescale);
+    wiringPiI2CWriteReg8(io_handle_, MODE1, wake);
 
     // Now wait a millisecond until oscillator finished
     // stabilizing and restart PWM.
     delay(1);
-    wiringPiI2CWriteReg8(io_handle_, PCA9685_MODE1, restart);
+    wiringPiI2CWriteReg8(io_handle_, MODE1, restart);
 }
 
 /**
@@ -105,18 +115,18 @@ void PCA9685Controller::set_pwm_freq_(float pwm_freq)
  */
 void PCA9685Controller::set_pwm(int pin, int value)
 {
-    if (value >= 4096)  full_on_(pin, 1);
-    else if (value > 0) pwm_write_(pin, 0, value);
-    else                full_off_(pin, 1);
+    if (value >= MAX_PWM) full_on_(pin, 1);
+    else if (value > 0)   pwm_write_(pin, 0, value);
+    else                  full_off_(pin, 1);
 }
 
 /**
- * Set all leds back to default values (: fullOff = 1)
+ * Set all channels back to default values (: fullOff = 1)
  */
 void PCA9685Controller::reset_all_()
 {
-    wiringPiI2CWriteReg16(io_handle_, LEDALL_ON_L,     0x0);
-    wiringPiI2CWriteReg16(io_handle_, LEDALL_ON_L + 2, 0x1000);
+    wiringPiI2CWriteReg16(io_handle_, ALL_CHANNELS_ON_L,     0x0);
+    wiringPiI2CWriteReg16(io_handle_, ALL_CHANNELS_ON_L + 2, 0x1000);
 }
 
 /**
@@ -140,11 +150,11 @@ void PCA9685Controller::pwm_write_(int pin, int on, int off)
  */
 void PCA9685Controller::full_on_(int pin, int tf)
 {
-    int reg = base_register_(pin) + 1;  // LEDX_ON_H
+    int reg = base_register_(pin) + 1;  // CHANNELX_ON_H
     int state = wiringPiI2CReadReg8(io_handle_, reg);
 
     // Set bit 4 to 1 or 0 accordingly
-    state = tf ? (state | 0x10) : (state & 0xEF);
+    state = tf ? (state | SLEEP) : (state & WAKE);
 
     wiringPiI2CWriteReg8(io_handle_, reg, state);
 
@@ -160,11 +170,11 @@ void PCA9685Controller::full_on_(int pin, int tf)
  */
 void PCA9685Controller::full_off_(int pin, int tf)
 {
-    int reg = base_register_(pin) + 3;  // LEDX_OFF_H
+    int reg   = base_register_(pin) + 3;  // CHANNELX_OFF_H
     int state = wiringPiI2CReadReg8(io_handle_, reg);
 
     // Set bit 4 to 1 or 0 accordingly
-    state = tf ? (state | 0x10) : (state & 0xEF);
+    state = tf ? (state | SLEEP) : (state & WAKE);
 
     wiringPiI2CWriteReg8(io_handle_, reg, state);
 }
