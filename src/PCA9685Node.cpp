@@ -30,6 +30,7 @@ PCA9685Node::PCA9685Node()
 
     // Set the pwm frequency to some value between 40 and 1000
     // 50 is typically used for servos
+    int pwm_freq;
     nh_.param("/servos/pwm_frequency", pwm_freq, PWM_FREQ);
     board_controller_.set_pwm_freq(pwm_freq);
 
