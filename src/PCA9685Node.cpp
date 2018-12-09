@@ -34,10 +34,10 @@ PCA9685Node::PCA9685Node()
     configure_servo_("throttle");
     configure_servo_("steering");
 
-    drive_sub_ = nh_.subscribe<geometry_msgs::Twist>(
-        "servos_drive", 10, &PCA9685Node::servos_drive_callback_, this);
     abs_sub_ = nh_.subscribe<pca9685_board::Servo>(
         "servo_absolute", 1, &PCA9685Node::servo_absolute_callback_, this);
+    drive_sub_ = nh_.subscribe<geometry_msgs::Twist>(
+        "servos_drive", 10, &PCA9685Node::servos_drive_callback_, this);
 }
 
 const servo_config* PCA9685Node::get_servo_config(std::string name)
@@ -57,14 +57,12 @@ void PCA9685Node::configure_servo_(const std::string name)
     servo_config config;
     config.center = get_int_param_(param_name + "/center");
     config.direction = get_int_param_(param_name + "/direction");
-    config.pin = get_int_param_(param_name + "/pin");
+    config.channel = get_int_param_(param_name + "/channel");
     config.range = get_int_param_(param_name + "/range");
     servos_.insert(std::pair<std::string, servo_config>(name, config));
 
-    ROS_ASSERT(servos_.find(name) != servos_.end());
-
-    ROS_INFO("(%s) center: %d, direction: %d, pin: %d, range %d",
-        name.c_str(), config.center, config.direction, config.pin,
+    ROS_INFO("(%s) center: %d, direction: %d, channel: %d, range %d",
+        name.c_str(), config.center, config.direction, config.channel,
         config.range);
 }
 
@@ -92,9 +90,9 @@ void PCA9685Node::set_servo_proportional_(
 {
     const servo_config* config = get_servo_config(servo_name);
     int pwm_value = get_pwm_proportional_(config, value);
-    board_controller_.set_pwm_interval(config->pin, pwm_value);
-    ROS_INFO("servo: %s, pin: %d, value: %f, pwm_value: %d",
-        servo_name.c_str(), config->pin, value, pwm_value);
+    board_controller_.set_pwm_interval(config->channel, pwm_value);
+    ROS_INFO("servo: %s, channel: %d, value: %f, pwm_value: %d",
+        servo_name.c_str(), config->channel, value, pwm_value);
 }
 
 /**
@@ -128,7 +126,7 @@ void PCA9685Node::servo_absolute_callback_(
 )
 {
     const servo_config* config = get_servo_config(msg->name);
-    board_controller_.set_pwm_interval(config->pin, msg->value);
-    ROS_INFO("servo: %s, pin: %d, value: %d",
-        msg->name.c_str(), config->pin, static_cast<int>(msg->value));
+    board_controller_.set_pwm_interval(config->channel, msg->value);
+    ROS_INFO("servo: %s, channel: %d, value: %d",
+        msg->name.c_str(), config->channel, static_cast<int>(msg->value));
 }

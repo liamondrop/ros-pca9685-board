@@ -3,13 +3,13 @@
     servos:
       pwm_frequency: 50
       throttle:
-        pin: 0
+        channel: 0
         center: 320
         direction: 1
         range: 100
       steering:
-        pin: 1
-        center: 330
+        channel: 1
+        center: 333
         direction: 1
         range: 180
   </rosparam>

@@ -11,8 +11,8 @@ namespace pca9685_board
 {
     typedef struct servo_config_ {
         int center;
+        int channel;
         int direction;
-        int pin;
         int range;
     } servo_config;
 
@@ -24,16 +24,16 @@ namespace pca9685_board
         const servo_config* get_servo_config(std::string name);
 
     private:
-        void servos_drive_callback_(const geometry_msgs::TwistConstPtr& msg);
-        void servo_absolute_callback_(const pca9685_board::ServoConstPtr& msg);
-        void set_servo_proportional_(const std::string servo_name, const float value);
         void configure_servo_(const std::string name);
         int get_int_param_(const std::string name);
+        void servo_absolute_callback_(const pca9685_board::ServoConstPtr& msg);
+        void servos_drive_callback_(const geometry_msgs::TwistConstPtr& msg);
+        void set_servo_proportional_(const std::string servo_name, const float value);
 
+        PCA9685Controller board_controller_;
         ros::NodeHandle nh_;
         ros::Subscriber abs_sub_;
         ros::Subscriber drive_sub_;
-        PCA9685Controller board_controller_;
         std::map<std::string, servo_config> servos_;
     };
 }
