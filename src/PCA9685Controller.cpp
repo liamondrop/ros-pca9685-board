@@ -103,7 +103,7 @@ void PCA9685Controller::set_pwm_freq_(float pwm_freq)
  * If value is >= 4096, full-on will be enabled
  * Every value in between enables PWM output
  */
-void PCA9685Controller::set_pwm_interval(int pin, int value)
+void PCA9685Controller::set_pwm(int pin, int value)
 {
     if (value >= 4096)  full_on_(pin, 1);
     else if (value > 0) pwm_write_(pin, 0, value);

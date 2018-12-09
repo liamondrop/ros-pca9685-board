@@ -9,7 +9,7 @@ namespace pca9685_board
         PCA9685Controller();
         ~PCA9685Controller();
         int setup(const int i2c_address, float pwm_freq);
-        void set_pwm_interval(int pin, int value);
+        void set_pwm(int pin, int value);
 
     private:
         void reset_all_();

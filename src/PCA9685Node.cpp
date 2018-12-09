@@ -90,7 +90,7 @@ void PCA9685Node::set_servo_proportional_(
 {
     const servo_config* config = get_servo_config(servo_name);
     int pwm_value = get_pwm_proportional_(config, value);
-    board_controller_.set_pwm_interval(config->channel, pwm_value);
+    board_controller_.set_pwm(config->channel, pwm_value);
     ROS_INFO("servo: %s, channel: %d, value: %f, pwm_value: %d",
         servo_name.c_str(), config->channel, value, pwm_value);
 }
@@ -126,7 +126,7 @@ void PCA9685Node::servo_absolute_callback_(
 )
 {
     const servo_config* config = get_servo_config(msg->name);
-    board_controller_.set_pwm_interval(config->channel, msg->value);
+    board_controller_.set_pwm(config->channel, msg->value);
     ROS_INFO("servo: %s, channel: %d, value: %d",
         msg->name.c_str(), config->channel, static_cast<int>(msg->value));
 }
