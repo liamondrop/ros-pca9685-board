@@ -2,6 +2,7 @@
 #define PCA9685Node_H_
 
 #include <ros/ros.h>
+#include <geometry_msgs/Twist.h>
 
 #include "pca9685_board/PCA9685Controller.h"
 #include "pca9685_board/Servo.h"
@@ -23,14 +24,15 @@ namespace pca9685_board
         const servo_config* get_servo_config(std::string name);
 
     private:
-        void servo_absolute_(const pca9685_board::Servo::ConstPtr& msg);
-        void servo_proportional_(const pca9685_board::Servo::ConstPtr& msg);
-        void configure_servo_(std::string name);
-        int get_int_param_(std::string name);
+        void servos_drive_callback_(const geometry_msgs::TwistConstPtr& msg);
+        void servo_absolute_callback_(const pca9685_board::ServoConstPtr& msg);
+        void set_servo_proportional_(const std::string servo_name, const float value);
+        void configure_servo_(const std::string name);
+        int get_int_param_(const std::string name);
 
         ros::NodeHandle nh_;
         ros::Subscriber abs_sub_;
-        ros::Subscriber prop_sub_;
+        ros::Subscriber drive_sub_;
         PCA9685Controller board_controller_;
         std::map<std::string, servo_config> servos_;
     };
