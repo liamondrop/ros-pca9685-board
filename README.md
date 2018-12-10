@@ -5,8 +5,6 @@
 
 The primary purpose of this project is to develop a ROS node capable of controlling servos for steering and throttle, such as would be used by an RC car, using the standard PCA9685 board, controlled over the I2C bus from a Raspberry Pi.
 
-You should have completed at least the ROS tutorial for writing a [Teleoperation Node for a Joystick](http://wiki.ros.org/joy/Tutorials/WritingTeleopNode).
-
 ## Table of Contents
 
 - [Dependencies](#dependencies)
@@ -68,11 +66,13 @@ The `pca9685_board` node listens to two topics:
     rostopic pub servo_absolute pca9685_board/Servo "{name: steering, value: 333}"
  - `/servos_drive`: this topic accepts a standard `geometry_msgs::Twist` message, using the `linear.x` value for the throttle and the `angular.z` value for the steering. Note that these values should be between -1.0 and 1.0 inclusive.
 
-Assuming you have completed the TeleopTurtle Joystick tutorial above, you could control the servos by simply relaying the `/turtle1/cmd_vel` topic to the `/servos_drive` topic.
+If you have completed the [TeleopTurtle Joystick tutorial](http://wiki.ros.org/joy/Tutorials/WritingTeleopNode), you could control the servos with a joystick by simply relaying the `/turtle1/cmd_vel` topic to the `/servos_drive` topic.
 
 ```
 rosrun topic_tools relay /turtle1/cmd_vel /servos_drive
 ```
+
+Note that the angular and linear scales in that project are set to 2, and you will probably want to change them to 1 so the joystick output only ranges from -1.0 to 1.0, as required by this module.
 
 ## Maintainers
 
