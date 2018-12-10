@@ -124,7 +124,7 @@ void PCA9685Node::servos_drive_callback_(
  * Callback function for the servo_absolute topic. Intended as a utility
  * to help properly configure a servo's range of pulse values
  *
- * the following messages are an example of finding the steering servo's center, e.g. 333
+ * the following messages are an example of finding the steering servo's center, i.e. 333
  *
  * rostopic pub servo_absolute pca9685_board/Servo "{name: steering, value: 300}"
  * rostopic pub servo_absolute pca9685_board/Servo "{name: steering, value: 350}"
