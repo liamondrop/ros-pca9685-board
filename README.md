@@ -16,7 +16,9 @@ The primary purpose of this project is to develop a ROS node capable of controll
 
 ## Dependencies
 
-This project depends on the [wiringPi](http://wiringpi.com/) library for I2C communication. It may already be present on your Pi. You can learn more about it [here](http://wiringpi.com/download-and-install/).
+ROS, obviously. If you don't want to suffer the pain of trying to build ROS on the standard RPi Linux distros, you might look into [this tasty image](https://downloads.ubiquityrobotics.com/pi.html), with ROS pre-installed, from Ubiquity Robotics.
+
+This project also depends on the [wiringPi](http://wiringpi.com/) library for I2C communication. It may already be present on your Pi. You can learn more about it [here](http://wiringpi.com/download-and-install/).
 
 ## Install
 
