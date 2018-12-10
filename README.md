@@ -3,7 +3,7 @@
 
 > A ROS node to control servos on a PCA9685 board
 
-The primary purpose of this project is to develop a ROS node capable of controlling servos for steering and throttle, such as would be used by an RC car, using the standard PCA9685 board, controlled over the I2C bus from a Raspberry Pi.
+The primary purpose of this project is to develop a ROS node capable of controlling servos for steering and throttle, such as would be used by a [Donkey Car](http://www.donkeycar.com/), using the standard Adafruit PCA9685 board, controlled over the I2C bus from a Raspberry Pi.
 
 ## Table of Contents
 
