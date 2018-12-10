@@ -1,4 +1,4 @@
-# ros-pca9685-board
+# ROS PCA9685 Board
 
 
 > A ROS node to control servos on a PCA9685 board
@@ -9,9 +9,9 @@ You should have completed at least the ROS tutorial for writing a [Teleoperation
 
 ## Table of Contents
 
+- [Dependencies](#dependencies)
 - [Install](#install)
 - [Usage](#usage)
-- [API](#api)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
 - [License](#license)
@@ -42,7 +42,16 @@ source devel/setup.bash
 
 In the launch file, there is an example servo configuration. This will set the parameters for the steering and throttle servos, as well as the pwm frequency. You may need to change these for your particular setup.
 
-Launch the `pca9685_board` node.
+ - channel: This should be a value from 0 to 15, corresponding to the pin on your PCA9685 board connected to the servo you are configuring.
+ - center: For the steering servo, this will be the pulse value (somewhere between 0 and 4096) that causes your wheels to point straight ahead. For the throttle, this will be the pulse value at which the throttle is stopped.
+ - direction: Either 1 or -1, depending on the servo. Some experimentation is required.
+ - range: The difference between the high and low signal. For example, if a signal of 400 gives you full forward throttle and a signal of 300 gives you full reverse throttle, then the range is 100 (and your center value should probably be 350).
+
+One note on throttle servos for RC cars: when switching from forward to reverse, it is actually necessary to send a reverse pulse twice before the servo will respond.
+
+You may also set the PWM Frequency in the configuration. It defaults to 50hz in this project, which is the standard recommended frequency for servos. If you change this value, you will likely need to update your servo configurations as well.
+
+Once you haveLaunch the `pca9685_board` node.
 
 ```
 roslaunch pca9685_board pca9685.launch
@@ -50,14 +59,14 @@ roslaunch pca9685_board pca9685.launch
 
 The `pca9685_board` node listens to two topics:
 
- - `/servo_absolute`: this topic accepts a pca9685_board::Servo message, which is built by the project. The main purpose of this topic is to send pwm signals to help you fine tune the configuration of your servos. The following messages are an example of using this topic to find the pulse value corresponding to the steering servo's center, i.e. 333.
+ - `/servo_absolute`: this topic accepts a `pca9685_board::Servo` message, which is built by this project. The main purpose of this topic is to send pwm signals to help you fine tune the configuration of your servos. The following messages are an example of using this topic to find the pulse value corresponding to the steering servo's center, i.e. 333.
     ```
     rostopic pub servo_absolute pca9685_board/Servo "{name: steering, value: 300}"
     rostopic pub servo_absolute pca9685_board/Servo "{name: steering, value: 350}"
     rostopic pub servo_absolute pca9685_board/Servo "{name: steering, value: 330}"
     rostopic pub servo_absolute pca9685_board/Servo "{name: steering, value: 335}"
     rostopic pub servo_absolute pca9685_board/Servo "{name: steering, value: 333}"
- - `/servos_drive`: this topic accepts a standard geometry_msgs::Twist message, using the `linear.x` value for the throttle and the `angular.z` value for the steering. Note that these values should be between -1.0 and 1.0 inclusive.
+ - `/servos_drive`: this topic accepts a standard `geometry_msgs::Twist` message, using the `linear.x` value for the throttle and the `angular.z` value for the steering. Note that these values should be between -1.0 and 1.0 inclusive.
 
 Assuming you have completed the TeleopTurtle Joystick tutorial above, you could control the servos by simply relaying the `/turtle1/cmd_vel` topic to the `/servos_drive` topic.
 
