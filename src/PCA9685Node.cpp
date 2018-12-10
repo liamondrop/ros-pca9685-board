@@ -102,7 +102,7 @@ void PCA9685Node::set_servo_proportional_(
     const servo_config* config = get_servo_config(servo_name);
     int pwm_value = map_value_to_pwm_(config, value);
     board_controller_.set_pwm(config->channel, pwm_value);
-    ROS_DEBUG("servo: %s, channel: %d, value: %f, pwm_value: %d",
+    ROS_INFO("servo: %s, channel: %d, value: %f, pwm_value: %d",
         servo_name.c_str(), config->channel, value, pwm_value);
 }
 
@@ -124,13 +124,13 @@ void PCA9685Node::servos_drive_callback_(
  * Callback function for the servo_absolute topic. Intended as a utility
  * to help properly configure a servo's range of pulse values
  *
- * the following messages are an example of finding the throttle servo's center, e.g. 333
+ * the following messages are an example of finding the steering servo's center, e.g. 333
  *
- * rostopic pub servo_absolute pca9685_board/Servo "{name: throttle, value: 300}"
- * rostopic pub servo_absolute pca9685_board/Servo "{name: throttle, value: 350}"
- * rostopic pub servo_absolute pca9685_board/Servo "{name: throttle, value: 330}"
- * rostopic pub servo_absolute pca9685_board/Servo "{name: throttle, value: 335}"
- * rostopic pub servo_absolute pca9685_board/Servo "{name: throttle, value: 333}"
+ * rostopic pub servo_absolute pca9685_board/Servo "{name: steering, value: 300}"
+ * rostopic pub servo_absolute pca9685_board/Servo "{name: steering, value: 350}"
+ * rostopic pub servo_absolute pca9685_board/Servo "{name: steering, value: 330}"
+ * rostopic pub servo_absolute pca9685_board/Servo "{name: steering, value: 335}"
+ * rostopic pub servo_absolute pca9685_board/Servo "{name: steering, value: 333}"
  */
 void PCA9685Node::servo_absolute_callback_(
     const pca9685_board::ServoConstPtr& msg
