@@ -66,7 +66,10 @@ The `pca9685_board` node listens to two topics:
     rostopic pub servo_absolute pca9685_board/Servo "{name: steering, value: 330}"
     rostopic pub servo_absolute pca9685_board/Servo "{name: steering, value: 335}"
     rostopic pub servo_absolute pca9685_board/Servo "{name: steering, value: 333}"
- - `/servos_drive`: this topic accepts a standard `geometry_msgs::Twist` message, using the `linear.x` value for the throttle and the `angular.z` value for the steering. Note that these values should be between -1.0 and 1.0 inclusive.
+ - `/servos_drive`: this topic is intended for control and accepts a standard `geometry_msgs::Twist` message, using the `linear.x` value for the throttle and the `angular.z` value for the steering. Note that these values should be between -1.0 and 1.0 inclusive.
+    ```
+    rostopic pub servos_drive geometry_msgs/Twist "{linear: {x: 0.5}, angular: {z: -0.75}}"
+    ```
 
 If you have completed the [TeleopTurtle Joystick tutorial](http://wiki.ros.org/joy/Tutorials/WritingTeleopNode), you could control the servos with a joystick by simply relaying the `/turtle1/cmd_vel` topic to the `/servos_drive` topic.
 
