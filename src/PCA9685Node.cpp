@@ -64,7 +64,7 @@ void PCA9685Node::configure_servo_(const std::string name)
 {
     std::string param_name = "/servos/" + name;
     ROS_ASSERT_MSG(nh_.hasParam(param_name),
-        "Param %s does not exist", param_name.c_str());
+        "(%s) param does not exist", param_name.c_str());
     servo_config config;
     config.center = get_int_param_(param_name + "/center");
     config.direction = get_int_param_(param_name + "/direction");
